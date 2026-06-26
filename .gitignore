@@ -9,3 +9,6 @@ out/
 coverage/
 prisma/*.db
 next-env.d.ts
+
+# build info
+tsconfig.tsbuildinfo
