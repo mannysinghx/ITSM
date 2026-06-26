@@ -16,6 +16,7 @@ const ADMIN_NAV = [
   { href: "/app/admin/automation", label: "Automation" },
   { href: "/app/admin/integrations", label: "Integrations" },
   { href: "/app/admin/api-keys", label: "API Keys" },
+  { href: "/app/admin/billing", label: "Billing" },
   { href: "/app/admin/audit-logs", label: "Audit Logs" },
 ];
 

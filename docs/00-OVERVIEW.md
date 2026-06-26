@@ -21,7 +21,7 @@ plan that fixes the architectural gaps found in review.
 | [5](phases/PHASE-5-service-catalog.md) | Service Catalog | Catalog items, dynamic forms, approvals + chains, routing | **Complete** |
 | [6](phases/PHASE-6-ai.md) | AI | aiService abstraction, mocks, classify/summarize/draft, AIRequest logging | **Complete** |
 | [7](phases/PHASE-7-integrations.md) | Integrations | Workflow engine, email-to-ticket, Slack/Teams, webhooks, API keys | **Complete** |
-| [8](phases/PHASE-8-hardening.md) | Production Hardening | Observability, rate limits, MFA, security/load tests, billing | Planned |
+| [8](phases/PHASE-8-hardening.md) | Production Hardening | Observability, rate limits, MFA, security/load tests, billing | **Complete** |
 
 ## Phase doc format
 

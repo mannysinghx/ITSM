@@ -182,6 +182,21 @@ enum EmailDirection {
   out
 }
 
+// --- Phase 8 (Hardening) ---
+
+enum PlanTier {
+  free
+  team
+  company
+  enterprise
+}
+
+enum SubStatus {
+  active
+  past_due
+  canceled
+}
+
 /// Global identity. A user may belong to many tenants. NOT tenant-scoped, NOT RLS.
 model User {
   id            String   @id @default(uuid()) @db.Uuid
@@ -191,6 +206,13 @@ model User {
   emailVerified Boolean  @default(false) @map("email_verified")
   avatarUrl     String?  @map("avatar_url")
   status        UserStatus @default(active)
+  // Phase 8 auth hardening
+  mfaEnabled        Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret         String?   @map("mfa_secret")
+  mfaRecoveryCodes  Json?     @map("mfa_recovery_codes")
+  emailVerifiedAt   DateTime? @map("email_verified_at")
+  failedLoginCount  Int       @default(0) @map("failed_login_count")
+  lockedUntil       DateTime? @map("locked_until")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -215,6 +237,9 @@ model Session {
   activeTenantId String?  @map("active_tenant_id") @db.Uuid
   tokenHash      String   @unique @map("token_hash")
   expiresAt      DateTime @map("expires_at")
+  mfaSatisfied   Boolean  @default(false) @map("mfa_satisfied")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
   createdAt      DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -263,6 +288,9 @@ model Tenant {
   webhooks        Webhook[]
   apiKeys         ApiKey[]
   emailThreads    EmailThread[]
+  billingAccount  BillingAccount?
+  subscriptions   Subscription[]
+  usageEvents     UsageEvent[]
 
   @@map("tenants")
 }
@@ -1230,4 +1258,68 @@ model EmailMessage {
 
   @@index([tenantId, threadId])
   @@map("email_messages")
+}
+
+// --- Phase 8: billing + auth tokens ---
+
+model BillingAccount {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @unique @map("tenant_id") @db.Uuid
+  plan               PlanTier @default(free)
+  status             String   @default("active")
+  billingEmail       String?  @map("billing_email")
+  externalCustomerId String?  @map("external_customer_id")
+  limits             Json     @default("{}")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("billing_accounts")
+}
+
+model Subscription {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  billingAccountId       String    @map("billing_account_id") @db.Uuid
+  plan                   PlanTier
+  status                 SubStatus @default(active)
+  periodStart            DateTime  @map("period_start")
+  periodEnd              DateTime  @map("period_end")
+  externalSubscriptionId String?   @map("external_subscription_id")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model UsageEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  kind       String
+  quantity   Float    @default(1)
+  occurredAt DateTime @default(now()) @map("occurred_at")
+  metadata   Json     @default("{}")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, kind, occurredAt])
+  @@map("usage_events")
+}
+
+/// Global single-use tokens (email verify / password reset). NOT RLS — looked up by
+/// hashed token before any tenant context exists.
+model AuthToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  purpose   String
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, purpose])
+  @@map("auth_tokens")
 }

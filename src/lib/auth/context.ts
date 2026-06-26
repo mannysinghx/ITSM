@@ -13,6 +13,12 @@ export async function getAuthContext(): Promise<AuthContext | null> {
 
   const { userId, activeTenantId: tenantId } = session;
 
+  // MFA gate (Phase 8): an enrolled user must satisfy the challenge before app access.
+  if (!session.mfaSatisfied) {
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { mfaEnabled: true } });
+    if (u?.mfaEnabled) return null;
+  }
+
   // Confirm active membership (cross-tenant lookup via user context).
   const member = await withUser(userId, (tx) =>
     tx.tenantMembership.findFirst({

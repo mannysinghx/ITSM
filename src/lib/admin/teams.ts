@@ -3,6 +3,7 @@ import { type AuthContext, requirePermission } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { NotFoundError } from "@/lib/errors";
 import { slugify } from "@/lib/validation";
+import { enforceLimit } from "@/lib/billing/service";
 
 export async function listTeams(ctx: AuthContext) {
   requirePermission(ctx, "team.manage");
@@ -22,6 +23,7 @@ export async function listTeams(ctx: AuthContext) {
 export async function createTeam(ctx: AuthContext, name: string, description?: string) {
   requirePermission(ctx, "team.manage");
   return withTenant(ctx.tenantId, ctx.userId, async (tx) => {
+    await enforceLimit(tx, ctx.tenantId, "teams");
     const team = await tx.team.create({
       data: { tenantId: ctx.tenantId, name, slug: slugify(name), description: description ?? null },
     });

@@ -13,6 +13,7 @@ import { resolvePriority } from "@/lib/tickets/priority";
 import { recordHistory } from "@/lib/tickets/history";
 import { applySla, satisfyFirstResponse, satisfyResolution } from "@/lib/sla/timers";
 import { safeEmit } from "@/lib/automation/engine";
+import { enforceLimit, recordUsage } from "@/lib/billing/service";
 import {
   DEFAULT_TYPE_KEY,
   RESOLVED_STATUS_KEY,
@@ -73,6 +74,8 @@ export async function createTicketTx(
   opts: { allowAnyTeam?: boolean } = {},
 ) {
   {
+    // Plan-limit enforcement on the ticket create path (Phase 8, §18.14).
+    await enforceLimit(tx, ctx.tenantId, "tickets");
     // Resolve target team: explicit (must be accessible unless trusted) or the tenant default.
     let teamId = input.teamId;
     if (teamId) {
@@ -150,6 +153,7 @@ export async function createTicketTx(
       ticketId: ticket.id, ticketType: typeKey, priority, teamId,
     });
 
+    await recordUsage(tx, ctx.tenantId, "ticket_created", 1, { ticketId: ticket.id });
     return ticket;
   }
 }

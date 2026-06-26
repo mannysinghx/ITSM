@@ -68,7 +68,26 @@ depth cap guarantee a self-triggering rule terminates. Email-to-ticket parses in
 mail into threaded tickets behind a written threat-model (DMARC-fail rejected, tenant
 resolved server-side via a global mailbox route, sender allow/blocklist, signature
 strip). Scoped, hashed API keys with once-shown tokens and append-only activity. Slack/
-Teams/webhook delivery is a mock worker transport. Phase 8 is documented and planned.
+Teams/webhook delivery is a mock worker transport.
+
+**Phase 8 (Hardening) — complete.** Brute-force login lockout (5 failures → 15-min lock,
+no account enumeration) + per-IP rate limiting; MFA (TOTP per RFC 6238 + one-time
+recovery codes, no external deps) gating app access until the session challenge is
+satisfied; email verification + password reset over single-use, expiring, hashed tokens
+(mock email transport); billing plans with usage metering and limit enforcement on the
+users/teams/tickets/integrations create paths; the expanded cross-tenant **IDOR matrix**
+over every tenant-owned resource (run as the app DB role); and `/api/health`,
+`/api/ready`, `/metrics` probes. See [docs/TEST-CHECKLIST.md](docs/TEST-CHECKLIST.md) for
+the 15-acceptance-test release gate.
+
+> **Explicitly deferred infra** (needs real services, not built in this MVP): full
+> OpenTelemetry/Prometheus/Grafana/Loki/Sentry wiring, real SMTP, load-test harness, and
+> a payment processor (`externalCustomerId`/`externalSubscriptionId` are reserved). The
+> rate limiter is in-memory (use Redis in prod); the AI/email/channel transports are
+> mocks selected automatically when no key/URL is configured.
+
+**All 8 phases complete.** 64 automated tests green (run as the RLS-enforced app role);
+typecheck + production build clean.
 
 ## Stack
 

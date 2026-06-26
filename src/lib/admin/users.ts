@@ -4,6 +4,7 @@ import { type AuthContext, requirePermission } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { hashPassword } from "@/lib/auth/password";
 import { NotFoundError, ConflictError } from "@/lib/errors";
+import { enforceLimit } from "@/lib/billing/service";
 
 /** Lists tenant members with their teams and assigned roles. */
 export async function listUsers(ctx: AuthContext) {
@@ -43,6 +44,7 @@ export interface InviteInput {
 export async function inviteUser(ctx: AuthContext, input: InviteInput) {
   requirePermission(ctx, "user.manage");
   return withTenant(ctx.tenantId, ctx.userId, async (tx) => {
+    await enforceLimit(tx, ctx.tenantId, "users");
     let user = await tx.user.findUnique({ where: { email: input.email } });
     if (!user) {
       const placeholder = await hashPassword(randomBytes(24).toString("hex"));

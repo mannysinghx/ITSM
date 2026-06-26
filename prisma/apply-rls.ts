@@ -66,10 +66,14 @@ const TENANT_TABLES = [
   // tenant scoping is enforced in the app layer. They are NOT RLS-restricted.
   "email_threads",
   "email_messages",
+  // Phase 8 (billing)
+  "billing_accounts",
+  "subscriptions",
+  "usage_events",
 ];
 
 // Tables that must NOT have RLS (looked up before a tenant context exists).
-const GLOBAL_TABLES = ["api_keys", "api_key_activity", "mailbox_routes"];
+const GLOBAL_TABLES = ["api_keys", "api_key_activity", "mailbox_routes", "auth_tokens"];
 
 async function run(sql: string) {
   await prisma.$executeRawUnsafe(sql);

@@ -13,12 +13,12 @@ function hashToken(token: string): string {
  * Creates a server-side session and sets an httpOnly cookie. `sessions` is a global
  * table (not tenant-scoped), so it is accessed via the base client directly.
  */
-export async function createSession(userId: string, activeTenantId: string | null) {
+export async function createSession(userId: string, activeTenantId: string | null, mfaSatisfied = true) {
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + TTL_DAYS * 86_400_000);
 
   await prisma.session.create({
-    data: { userId, activeTenantId, tokenHash: hashToken(token), expiresAt },
+    data: { userId, activeTenantId, tokenHash: hashToken(token), expiresAt, mfaSatisfied },
   });
 
   const jar = await cookies();
@@ -35,6 +35,7 @@ export interface SessionRecord {
   id: string;
   userId: string;
   activeTenantId: string | null;
+  mfaSatisfied: boolean;
 }
 
 /** Resolves the current session from the cookie, or null. Clears expired sessions. */
@@ -55,7 +56,13 @@ export async function getSession(): Promise<SessionRecord | null> {
     id: session.id,
     userId: session.userId,
     activeTenantId: session.activeTenantId,
+    mfaSatisfied: session.mfaSatisfied,
   };
+}
+
+/** Marks the current session's MFA challenge as satisfied. */
+export async function markMfaSatisfied(sessionId: string) {
+  await prisma.session.update({ where: { id: sessionId }, data: { mfaSatisfied: true } });
 }
 
 export async function setActiveTenant(sessionId: string, tenantId: string) {

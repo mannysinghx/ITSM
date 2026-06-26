@@ -6,6 +6,7 @@ import { writeAudit } from "@/lib/audit";
 import { slugify } from "@/lib/validation";
 import { seedTenantConfig } from "@/lib/tickets/config";
 import { seedTenantSla } from "@/lib/sla/config";
+import { ensureBilling } from "@/lib/billing/service";
 
 export interface ProvisionResult {
   userId: string;
@@ -49,6 +50,7 @@ async function provisionTenant(opts: {
     });
 
     await tx.tenantCounter.create({ data: { tenantId } });
+    await ensureBilling(tx, tenantId);
 
     // Seed ticket config (statuses/types/priority matrix/categories) for this tenant.
     await seedTenantConfig(tx, tenantId);
