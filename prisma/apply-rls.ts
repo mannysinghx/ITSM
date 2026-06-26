@@ -47,6 +47,13 @@ const TENANT_TABLES = [
   "form_definitions",
   "form_submissions",
   "approvals",
+  // Phase 6 (AI + knowledge base)
+  "ai_requests",
+  "ai_outputs",
+  "ai_token_usage",
+  "knowledge_articles",
+  "knowledge_article_versions",
+  "knowledge_feedback",
 ];
 
 async function run(sql: string) {

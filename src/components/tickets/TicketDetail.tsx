@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PriorityBadge, StatusBadge } from "@/components/tickets/badges";
 import { SlaPanel } from "@/components/tickets/SlaPanel";
 import { LinkedTasks } from "@/components/tickets/LinkedTasks";
+import { AiAssist } from "@/components/tickets/AiAssist";
 
 interface Comment {
   id: string;
@@ -241,6 +242,7 @@ export function TicketDetail({ id }: { id: string }) {
             <Detail label="Created" value={new Date(t.createdAt).toLocaleString()} />
           </div>
           <SlaPanel ticketId={t.id} />
+          {data.canWrite && <AiAssist ticketId={t.id} />}
           <div className="rounded-lg border border-dashed border-slate-300 p-4 text-xs text-slate-400">
             Linked assets &amp; knowledge suggestions (Phases 5–6) appear here.
           </div>

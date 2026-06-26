@@ -117,6 +117,36 @@ enum ApprovalStatus {
   skipped
 }
 
+// --- Phase 6 (AI) ---
+
+enum AiUseCase {
+  classify
+  priority
+  team
+  summarize
+  draft
+  knowledge
+}
+
+enum AiStatus {
+  ok
+  error
+  budget_blocked
+  disabled
+}
+
+enum KnowledgeStatus {
+  draft
+  published
+  archived
+}
+
+enum KnowledgeSource {
+  human
+  ai
+  ticket
+}
+
 /// Global identity. A user may belong to many tenants. NOT tenant-scoped, NOT RLS.
 model User {
   id            String   @id @default(uuid()) @db.Uuid
@@ -188,6 +218,9 @@ model Tenant {
   catalogItems    ServiceCatalogItem[]
   formDefinitions FormDefinition[]
   approvals       Approval[]
+  aiRequests      AIRequest[]
+  aiTokenUsage    AITokenUsage[]
+  knowledgeArticles KnowledgeArticle[]
 
   @@map("tenants")
 }
@@ -813,4 +846,122 @@ model Approval {
   @@index([tenantId, status])
   @@index([ticketId, sequence])
   @@map("approvals")
+}
+
+// --- Phase 6: AI ---
+
+model AIRequest {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  teamId           String?   @map("team_id") @db.Uuid
+  userId           String?   @map("user_id") @db.Uuid
+  useCase          AiUseCase @map("use_case")
+  provider         String
+  model            String?
+  isMock           Boolean   @default(true) @map("is_mock")
+  redacted         Boolean   @default(false)
+  promptTokens     Int       @default(0) @map("prompt_tokens")
+  completionTokens Int       @default(0) @map("completion_tokens")
+  costUsd          Float     @default(0) @map("cost_usd")
+  latencyMs        Int       @default(0) @map("latency_ms")
+  status           AiStatus  @default(ok)
+  entityType       String?   @map("entity_type")
+  entityId         String?   @map("entity_id")
+  errorCode        String?   @map("error_code")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  tenant  Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  outputs AIOutput[]
+
+  @@index([tenantId, createdAt])
+  @@map("ai_requests")
+}
+
+model AIOutput {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  aiRequestId       String   @map("ai_request_id") @db.Uuid
+  outputType        String   @map("output_type")
+  content           Json     @default("{}")
+  aiSuggested       Boolean  @default(true) @map("ai_suggested")
+  accepted          Boolean?
+  acceptedByUserId  String?  @map("accepted_by_user_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  aiRequest AIRequest @relation(fields: [aiRequestId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("ai_outputs")
+}
+
+model AITokenUsage {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  teamId           String?  @map("team_id") @db.Uuid
+  userId           String?  @map("user_id") @db.Uuid
+  periodStart      DateTime @map("period_start")
+  periodEnd        DateTime @map("period_end")
+  promptTokens     Int      @default(0) @map("prompt_tokens")
+  completionTokens Int      @default(0) @map("completion_tokens")
+  costUsd          Float    @default(0) @map("cost_usd")
+  requestCount     Int      @default(0) @map("request_count")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, periodEnd])
+  @@map("ai_token_usage")
+}
+
+model KnowledgeArticle {
+  id               String          @id @default(uuid()) @db.Uuid
+  tenantId         String          @map("tenant_id") @db.Uuid
+  teamId           String?         @map("team_id") @db.Uuid
+  title            String
+  slug             String
+  status           KnowledgeStatus @default(draft)
+  source           KnowledgeSource @default(human)
+  sourceTicketId   String?         @map("source_ticket_id") @db.Uuid
+  currentVersionId String?         @map("current_version_id") @db.Uuid
+  createdByUserId  String          @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  tenant   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  versions KnowledgeArticleVersion[]
+  feedback KnowledgeFeedback[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+  @@map("knowledge_articles")
+}
+
+model KnowledgeArticleVersion {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  articleId       String   @map("article_id") @db.Uuid
+  version         Int
+  body            String
+  summary         String?
+  aiGenerated     Boolean  @default(false) @map("ai_generated")
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  article KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, version])
+  @@map("knowledge_article_versions")
+}
+
+model KnowledgeFeedback {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  articleId String   @map("article_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  helpful   Boolean
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  article KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@map("knowledge_feedback")
 }

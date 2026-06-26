@@ -46,8 +46,19 @@ admin-authored. Approval-required items materialize a first-class `approvals` ch
 (`sequence`/`status`/`decidedBy`); approve/reject endpoints advance or halt it strictly
 by sequence, only the designated approver (user / team-manager / role holder) can decide
 a step, every decision is audited, and `approval.requested/approved/rejected` events are
-emitted. An approvals inbox shows each user their active pending steps. Phases 6–8 are
-documented and planned.
+emitted. An approvals inbox shows each user their active pending steps.
+
+**Phase 6 (AI) — complete.** Every AI feature goes through one provider-neutral service
+(`lib/ai/service.ts`) that returns **deterministic mock output when no API key is set** —
+the product ships and tests run with zero model config. Six functions (classify, suggest
+priority/team, summarize, draft response, generate knowledge article); each enforces the
+enabled + per-module toggle, a token-budget hard stop, PII redaction-by-default, then
+logs an `ai_requests` + `ai_outputs` row and updates `ai_token_usage` — all tenant-scoped.
+Guardrails are in the service layer: every output is `aiSuggested=true`, there is no
+auto-close path, and external send is refused unless the tenant explicitly allows it. AI
+config lives in `tenants.settings.ai` and every change is audited. The knowledge base
+(articles + append-only versions + feedback) lands here, fed by AI-generated drafts.
+Phases 7–8 are documented and planned.
 
 ## Stack
 

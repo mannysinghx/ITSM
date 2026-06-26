@@ -12,6 +12,7 @@ const ADMIN_NAV = [
   { href: "/app/admin/service-catalog", label: "Service Catalog" },
   { href: "/app/admin/forms", label: "Forms" },
   { href: "/app/admin/slas", label: "SLAs" },
+  { href: "/app/admin/ai", label: "AI Settings" },
   { href: "/app/admin/audit-logs", label: "Audit Logs" },
 ];
 

@@ -12,6 +12,7 @@ const NAV = [
   { href: "/app/tasks", label: "Tasks" },
   { href: "/app/service-catalog", label: "Service Catalog" },
   { href: "/app/approvals", label: "Approvals" },
+  { href: "/app/knowledge", label: "Knowledge" },
 ];
 
 export default async function AppLayout({

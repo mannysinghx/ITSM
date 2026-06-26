@@ -69,6 +69,8 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: "audit.read", description: "Read audit logs", category: "audit" },
   { key: "integration.manage", description: "Manage integrations", category: "integration" },
   { key: "ai.manage", description: "Manage AI settings", category: "ai" },
+  { key: "ai.config.manage", description: "Configure AI provider/budget", category: "ai" },
+  { key: "ai.use", description: "Use AI assist features", category: "ai" },
   { key: "billing.manage", description: "Manage billing", category: "billing" },
 ];
 
@@ -105,6 +107,7 @@ export const DEFAULT_ROLES: RoleDef[] = [
       "ticket.resolve", "ticket.close", "ticket.comment.public", "ticket.comment.internal",
       "task.create", "task.read.team", "task.update.team",
       "team.manage_members", "report.view",
+      "ai.use", "knowledge.create", "knowledge.publish",
     ],
   },
   {
@@ -116,6 +119,7 @@ export const DEFAULT_ROLES: RoleDef[] = [
       "ticket.create", "ticket.read.team", "ticket.update.team", "ticket.assign",
       "ticket.resolve", "ticket.comment.public", "ticket.comment.internal",
       "task.read.team", "task.update.team",
+      "ai.use", "knowledge.create",
     ],
   },
   {
