@@ -1,5 +1,5 @@
-import type { Severity, TicketSource, Prisma } from "@prisma/client";
-import { withTenant } from "@/lib/db";
+import type { Severity, TicketSource, Priority, Prisma } from "@prisma/client";
+import { withTenant, type Tx } from "@/lib/db";
 import {
   type AuthContext,
   ForbiddenError,
@@ -41,16 +41,40 @@ export interface CreateTicketInput {
   urgency?: Severity;
   source?: TicketSource;
   tags?: string[];
+  /** Catalog flows set the priority directly instead of deriving from impact/urgency. */
+  priorityOverride?: Priority;
 }
 
-export async function createTicket(ctx: AuthContext, input: CreateTicketInput) {
+/** opts.allowAnyTeam bypasses the team membership check for trusted server-side routing
+ *  (catalog submissions route to a team the requester may not belong to). */
+export async function createTicket(
+  ctx: AuthContext,
+  input: CreateTicketInput,
+  opts: { allowAnyTeam?: boolean } = {},
+) {
   requirePermission(ctx, "ticket.create");
+  return withTenant(ctx.tenantId, ctx.userId, (tx) => createTicketTx(tx, ctx, input, opts));
+}
 
-  return withTenant(ctx.tenantId, ctx.userId, async (tx) => {
-    // Resolve target team: explicit (must be accessible) or the tenant default.
+/**
+ * Ticket-creation core that runs inside a caller-provided transaction, so flows that
+ * must be atomic with the ticket (catalog submission + form_submission + approvals)
+ * can share one tx (Prisma can't nest transactions). Assumes ticket.create is already
+ * authorized by the caller.
+ */
+export async function createTicketTx(
+  tx: Tx,
+  ctx: AuthContext,
+  input: CreateTicketInput,
+  opts: { allowAnyTeam?: boolean } = {},
+) {
+  {
+    // Resolve target team: explicit (must be accessible unless trusted) or the tenant default.
     let teamId = input.teamId;
     if (teamId) {
-      if (!canAccessTeam(ctx, teamId)) throw new ForbiddenError("Cannot post to that team");
+      if (!opts.allowAnyTeam && !canAccessTeam(ctx, teamId)) {
+        throw new ForbiddenError("Cannot post to that team");
+      }
     } else {
       const def =
         (await tx.team.findFirst({ where: { isDefault: true }, select: { id: true } })) ??
@@ -83,7 +107,7 @@ export async function createTicket(ctx: AuthContext, input: CreateTicketInput) {
 
     const impact = input.impact ?? "medium";
     const urgency = input.urgency ?? "medium";
-    const priority = await resolvePriority(tx, ctx.tenantId, impact, urgency);
+    const priority = input.priorityOverride ?? (await resolvePriority(tx, ctx.tenantId, impact, urgency));
     const ticketNumber = await allocateTicketNumber(tx, ctx.tenantId);
 
     const ticket = await tx.ticket.create({
@@ -122,7 +146,7 @@ export async function createTicket(ctx: AuthContext, input: CreateTicketInput) {
     });
 
     return ticket;
-  });
+  }
 }
 
 /** Config the create/edit form needs: types, categories, postable teams, priority matrix. */

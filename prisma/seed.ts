@@ -6,6 +6,7 @@ import { slugify } from "@/lib/validation";
 import { PERMISSION_KEYS } from "@/lib/permissions";
 import type { AuthContext } from "@/lib/authz";
 import { createTicket, addComment } from "@/lib/tickets/service";
+import { createForm, createCatalogItem } from "@/lib/admin/catalog";
 
 /** Builds an owner-level AuthContext (all permissions) for seeding tickets. */
 async function ownerCtx(tenantId: string, userId: string): Promise<AuthContext> {
@@ -164,6 +165,41 @@ async function main() {
     type: "incident",
     impact: "medium",
     urgency: "low",
+  });
+
+  console.log("Seeding service catalog…");
+  const pwForm = await createForm(acmeCtx, "Password Reset Form", {
+    fields: [
+      { key: "username", label: "Username", type: "text", required: true },
+      { key: "reason", label: "Reason", type: "textarea", required: false },
+    ],
+  });
+  await createCatalogItem(acmeCtx, {
+    name: "Reset Password",
+    description: "Request a password reset for your account.",
+    category: "Access",
+    teamId: itSupport.id,
+    formDefinitionId: pwForm.id,
+    defaultPriority: "p3",
+    visibility: "internal",
+  });
+
+  const laptopForm = await createForm(acmeCtx, "New Laptop Form", {
+    fields: [
+      { key: "model", label: "Preferred model", type: "dropdown", required: true, options: ["MacBook Pro", "ThinkPad", "Dell XPS"] },
+      { key: "justification", label: "Business justification", type: "textarea", required: true },
+    ],
+  });
+  await createCatalogItem(acmeCtx, {
+    name: "Request New Laptop",
+    description: "Order a new laptop (requires manager approval).",
+    category: "Hardware",
+    teamId: itSupport.id,
+    formDefinitionId: laptopForm.id,
+    defaultPriority: "p3",
+    approvalRequired: true,
+    approvalChain: [{ type: "team_manager" }],
+    visibility: "internal",
   });
 
   console.log("\nSeed complete. Demo logins (password: password123):");

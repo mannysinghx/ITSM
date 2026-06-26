@@ -36,7 +36,18 @@ most-specific wins) that stamp first-response/resolution due dates and insert
 warns → breaches → escalates exactly once per timer (the `warnedAt`/`breachedAt` columns
 are the latches), callable headless or via a manual trigger endpoint. In-app + mock-email
 notifications honoring per-user preferences. SLA math is calendar-time (labeled as such);
-business-hours/holiday math is deferred. Phases 5–8 are documented and planned.
+business-hours/holiday math is deferred.
+
+**Phase 5 (Service Catalog) — complete.** A request portal where users pick a catalog
+item, fill a dynamically-rendered form (the §13 field types, Zod-validated server-side),
+and submit — which creates a ticket in one transaction with the item's defaults
+(priority/team/source) and SLA stamping. Catalog items + form definitions are
+admin-authored. Approval-required items materialize a first-class `approvals` chain
+(`sequence`/`status`/`decidedBy`); approve/reject endpoints advance or halt it strictly
+by sequence, only the designated approver (user / team-manager / role holder) can decide
+a step, every decision is audited, and `approval.requested/approved/rejected` events are
+emitted. An approvals inbox shows each user their active pending steps. Phases 6–8 are
+documented and planned.
 
 ## Stack
 

@@ -42,6 +42,11 @@ const TENANT_TABLES = [
   "holiday_calendars",
   "notifications",
   "notification_preferences",
+  // Phase 5 (service catalog)
+  "service_catalog_items",
+  "form_definitions",
+  "form_submissions",
+  "approvals",
 ];
 
 async function run(sql: string) {

@@ -102,6 +102,21 @@ enum SlaKind {
   resolution
 }
 
+// --- Phase 5 (Service Catalog) ---
+
+enum CatalogVisibility {
+  public
+  internal
+  team
+}
+
+enum ApprovalStatus {
+  pending
+  approved
+  rejected
+  skipped
+}
+
 /// Global identity. A user may belong to many tenants. NOT tenant-scoped, NOT RLS.
 model User {
   id            String   @id @default(uuid()) @db.Uuid
@@ -170,6 +185,9 @@ model Tenant {
   slaPolicies     SLAPolicy[]
   businessHours   BusinessHours[]
   holidayCalendars HolidayCalendar[]
+  catalogItems    ServiceCatalogItem[]
+  formDefinitions FormDefinition[]
+  approvals       Approval[]
 
   @@map("tenants")
 }
@@ -431,6 +449,7 @@ model Ticket {
   links       TicketLink[]       @relation("TicketLinkSource")
   tasks       Task[]             @relation("TicketTasks")
   slaTimers   SLATimer[]
+  approvals   Approval[]
 
   @@unique([tenantId, ticketNumber])
   @@index([tenantId, teamId])
@@ -711,4 +730,87 @@ model NotificationPreference {
 
   @@unique([userId, eventType])
   @@map("notification_preferences")
+}
+
+// --- Phase 5: service catalog ---
+
+model FormDefinition {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  schema    Json     @default("{\"fields\":[]}")
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items       ServiceCatalogItem[]
+  submissions FormSubmission[]
+
+  @@map("form_definitions")
+}
+
+model ServiceCatalogItem {
+  id                String            @id @default(uuid()) @db.Uuid
+  tenantId          String            @map("tenant_id") @db.Uuid
+  teamId            String?           @map("team_id") @db.Uuid
+  name              String
+  description       String?
+  category          String?
+  formDefinitionId  String?           @map("form_definition_id") @db.Uuid
+  defaultPriority   Priority          @default(p3) @map("default_priority")
+  defaultSlaPolicyId String?          @map("default_sla_policy_id") @db.Uuid
+  approvalRequired  Boolean           @default(false) @map("approval_required")
+  approvalChain     Json              @default("[]") @map("approval_chain")
+  routingRule       Json              @default("{}") @map("routing_rule")
+  visibility        CatalogVisibility @default(internal)
+  status            String            @default("active")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  formDefinition FormDefinition? @relation(fields: [formDefinitionId], references: [id])
+  submissions    FormSubmission[]
+
+  @@index([tenantId, visibility, status])
+  @@map("service_catalog_items")
+}
+
+model FormSubmission {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  catalogItemId    String   @map("catalog_item_id") @db.Uuid
+  formDefinitionId String?  @map("form_definition_id") @db.Uuid
+  submittedById    String   @map("submitted_by") @db.Uuid
+  values           Json     @default("{}")
+  ticketId         String?  @map("ticket_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  catalogItem    ServiceCatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  formDefinition FormDefinition?    @relation(fields: [formDefinitionId], references: [id])
+
+  @@index([tenantId, catalogItemId])
+  @@map("form_submissions")
+}
+
+model Approval {
+  id             String         @id @default(uuid()) @db.Uuid
+  tenantId       String         @map("tenant_id") @db.Uuid
+  ticketId       String?        @map("ticket_id") @db.Uuid
+  submissionId   String?        @map("submission_id") @db.Uuid
+  sequence       Int
+  approverUserId String?        @map("approver_user_id") @db.Uuid
+  approverRole   String?        @map("approver_role")
+  status         ApprovalStatus @default(pending)
+  decidedById    String?        @map("decided_by") @db.Uuid
+  decidedAt      DateTime?      @map("decided_at")
+  comment        String?
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([ticketId, sequence])
+  @@map("approvals")
 }
