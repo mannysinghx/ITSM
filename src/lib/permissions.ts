@@ -68,6 +68,8 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: "report.view", description: "View reports", category: "report" },
   { key: "audit.read", description: "Read audit logs", category: "audit" },
   { key: "integration.manage", description: "Manage integrations", category: "integration" },
+  { key: "automation.manage", description: "Manage automation rules & workflows", category: "automation" },
+  { key: "apikey.manage", description: "Manage API keys", category: "integration" },
   { key: "ai.manage", description: "Manage AI settings", category: "ai" },
   { key: "ai.config.manage", description: "Configure AI provider/budget", category: "ai" },
   { key: "ai.use", description: "Use AI assist features", category: "ai" },

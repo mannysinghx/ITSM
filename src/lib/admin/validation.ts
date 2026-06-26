@@ -52,6 +52,34 @@ export const slaPolicySchema = z.object({
 
 export const slaPolicyUpdateSchema = slaPolicySchema.partial();
 
+export const ruleSchema = z.object({
+  name: z.string().min(1).max(160),
+  event: z.string().min(1),
+  conditions: z.array(z.record(z.unknown())).optional(),
+  actions: z.array(z.record(z.unknown())).optional(),
+  enabled: z.boolean().optional(),
+  priority: z.number().int().optional(),
+  teamId: z.string().uuid().nullable().optional(),
+});
+export const ruleUpdateSchema = ruleSchema.partial();
+
+export const integrationSchema = z.object({
+  kind: z.enum(["slack", "teams", "email", "webhook", "github", "jira"]),
+  name: z.string().min(1).max(160),
+  config: z.record(z.unknown()).optional(),
+});
+
+export const webhookSchema = z.object({
+  url: z.string().url(),
+  events: z.array(z.string()).min(1),
+});
+
+export const apiKeySchema = z.object({
+  name: z.string().min(1).max(160),
+  scopes: z.array(z.string()).min(1),
+  expiresAt: z.string().datetime().optional(),
+});
+
 export const configMutationSchema = z.object({
   resource: z.enum(["type", "status", "matrix", "category", "field"]),
   op: z.enum(["create", "update", "delete"]),

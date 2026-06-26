@@ -12,6 +12,7 @@ import { allocateTicketNumber } from "@/lib/tickets/number";
 import { resolvePriority } from "@/lib/tickets/priority";
 import { recordHistory } from "@/lib/tickets/history";
 import { applySla, satisfyFirstResponse, satisfyResolution } from "@/lib/sla/timers";
+import { safeEmit } from "@/lib/automation/engine";
 import {
   DEFAULT_TYPE_KEY,
   RESOLVED_STATUS_KEY,
@@ -40,6 +41,7 @@ export interface CreateTicketInput {
   impact?: Severity;
   urgency?: Severity;
   source?: TicketSource;
+  channel?: string;
   tags?: string[];
   /** Catalog flows set the priority directly instead of deriving from impact/urgency. */
   priorityOverride?: Priority;
@@ -53,7 +55,9 @@ export async function createTicket(
   opts: { allowAnyTeam?: boolean } = {},
 ) {
   requirePermission(ctx, "ticket.create");
-  return withTenant(ctx.tenantId, ctx.userId, (tx) => createTicketTx(tx, ctx, input, opts));
+  const ticket = await withTenant(ctx.tenantId, ctx.userId, (tx) => createTicketTx(tx, ctx, input, opts));
+  await safeEmit(ctx.tenantId, { event: "ticket.created", entityType: "ticket", entityId: ticket.id, actorId: ctx.userId });
+  return ticket;
 }
 
 /**
@@ -125,6 +129,7 @@ export async function createTicketTx(
         urgency,
         priority,
         source: input.source ?? "portal",
+        channel: input.channel ?? null,
         tags: input.tags ?? [],
         createdById: ctx.userId,
       },
@@ -274,7 +279,7 @@ export interface UpdateTicketInput {
 }
 
 export async function updateTicket(ctx: AuthContext, id: string, patch: UpdateTicketInput) {
-  return withTenant(ctx.tenantId, ctx.userId, async (tx) => {
+  const updated = await withTenant(ctx.tenantId, ctx.userId, async (tx) => {
     const ticket = await loadWritable(tx, ctx, id);
 
     const data: Prisma.TicketUpdateInput = { updatedById: ctx.userId };
@@ -324,11 +329,13 @@ export async function updateTicket(ctx: AuthContext, id: string, patch: UpdateTi
     }
     return updated;
   });
+  await safeEmit(ctx.tenantId, { event: "ticket.updated", entityType: "ticket", entityId: id, actorId: ctx.userId });
+  return updated;
 }
 
 export async function assignTicket(ctx: AuthContext, id: string, assigneeId: string | null) {
   requirePermission(ctx, "ticket.assign");
-  return withTenant(ctx.tenantId, ctx.userId, async (tx) => {
+  const updated = await withTenant(ctx.tenantId, ctx.userId, async (tx) => {
     const ticket = await loadWritable(tx, ctx, id);
     const updated = await tx.ticket.update({
       where: { id },
@@ -346,11 +353,13 @@ export async function assignTicket(ctx: AuthContext, id: string, assigneeId: str
     });
     return updated;
   });
+  await safeEmit(ctx.tenantId, { event: "ticket.assigned", entityType: "ticket", entityId: id, actorId: ctx.userId });
+  return updated;
 }
 
 /** Generic status transition by status key; sets resolved/closed/reopened timestamps. */
 export async function changeStatus(ctx: AuthContext, id: string, toKey: string) {
-  return withTenant(ctx.tenantId, ctx.userId, async (tx) => {
+  const updated = await withTenant(ctx.tenantId, ctx.userId, async (tx) => {
     const ticket = await loadWritable(tx, ctx, id);
     const target = await tx.ticketStatus.findUnique({
       where: { tenantId_key: { tenantId: ctx.tenantId, key: toKey } },
@@ -393,6 +402,8 @@ export async function changeStatus(ctx: AuthContext, id: string, toKey: string) 
     });
     return updated;
   });
+  await safeEmit(ctx.tenantId, { event: "ticket.status_changed", entityType: "ticket", entityId: id, actorId: ctx.userId });
+  return updated;
 }
 
 export async function listHistory(ctx: AuthContext, id: string) {
@@ -453,7 +464,7 @@ export async function addComment(
   isInternal: boolean,
 ) {
   requirePermission(ctx, isInternal ? "ticket.comment.internal" : "ticket.comment.public");
-  return withTenant(ctx.tenantId, ctx.userId, async (tx) => {
+  const comment = await withTenant(ctx.tenantId, ctx.userId, async (tx) => {
     const ticket = await tx.ticket.findUnique({ where: { id } });
     if (!ticket) throw new NotFoundError("Ticket not found");
     // Must at least be able to read the ticket to comment on it.
@@ -477,4 +488,6 @@ export async function addComment(
     }
     return comment;
   });
+  await safeEmit(ctx.tenantId, { event: "comment.created", entityType: "ticket", entityId: id, actorId: ctx.userId });
+  return comment;
 }

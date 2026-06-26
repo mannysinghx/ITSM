@@ -54,7 +54,22 @@ const TENANT_TABLES = [
   "knowledge_articles",
   "knowledge_article_versions",
   "knowledge_feedback",
+  // Phase 7 (integrations)
+  "workflows",
+  "workflow_versions",
+  "automation_rules",
+  "workflow_runs",
+  "workflow_run_steps",
+  "integrations",
+  "webhooks",
+  // api_keys / api_key_activity are GLOBAL (secret-hash lookup pre-tenant, like sessions);
+  // tenant scoping is enforced in the app layer. They are NOT RLS-restricted.
+  "email_threads",
+  "email_messages",
 ];
+
+// Tables that must NOT have RLS (looked up before a tenant context exists).
+const GLOBAL_TABLES = ["api_keys", "api_key_activity", "mailbox_routes"];
 
 async function run(sql: string) {
   await prisma.$executeRawUnsafe(sql);
@@ -80,6 +95,12 @@ async function main() {
   // The app role must NOT touch Prisma's migration bookkeeping.
   await run(`REVOKE ALL ON TABLE _prisma_migrations FROM ${APP_ROLE};`);
 
+  // --- Ensure global tables have RLS disabled (idempotent) ---
+  for (const t of GLOBAL_TABLES) {
+    await run(`ALTER TABLE ${t} DISABLE ROW LEVEL SECURITY;`);
+    await run(`DROP POLICY IF EXISTS tenant_isolation ON ${t};`);
+  }
+
   // --- Standard tenant tables: tenant_id = active tenant ---
   for (const t of TENANT_TABLES) {
     await run(`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`);
@@ -97,6 +118,7 @@ async function main() {
   await run(`REVOKE UPDATE, DELETE ON TABLE audit_logs FROM ${APP_ROLE};`);
   await run(`REVOKE UPDATE, DELETE ON TABLE ticket_history FROM ${APP_ROLE};`);
   await run(`REVOKE UPDATE, DELETE ON TABLE task_history FROM ${APP_ROLE};`);
+  await run(`REVOKE UPDATE, DELETE ON TABLE api_key_activity FROM ${APP_ROLE};`);
 
   // --- tenants: visible within active context OR to any of its members (bootstrap/switcher) ---
   await run(`ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;`);

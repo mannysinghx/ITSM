@@ -147,6 +147,41 @@ enum KnowledgeSource {
   ticket
 }
 
+// --- Phase 7 (Integrations) ---
+
+enum WorkflowStatus {
+  active
+  disabled
+}
+
+enum RunStatus {
+  matched
+  skipped
+  completed
+  failed
+  deferred
+}
+
+enum StepStatus {
+  ok
+  error
+  deferred
+}
+
+enum IntegrationKind {
+  slack
+  teams
+  email
+  webhook
+  github
+  jira
+}
+
+enum EmailDirection {
+  in
+  out
+}
+
 /// Global identity. A user may belong to many tenants. NOT tenant-scoped, NOT RLS.
 model User {
   id            String   @id @default(uuid()) @db.Uuid
@@ -221,6 +256,13 @@ model Tenant {
   aiRequests      AIRequest[]
   aiTokenUsage    AITokenUsage[]
   knowledgeArticles KnowledgeArticle[]
+  workflows       Workflow[]
+  automationRules AutomationRule[]
+  workflowRuns    WorkflowRun[]
+  integrations    Integration[]
+  webhooks        Webhook[]
+  apiKeys         ApiKey[]
+  emailThreads    EmailThread[]
 
   @@map("tenants")
 }
@@ -964,4 +1006,228 @@ model KnowledgeFeedback {
   article KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@map("knowledge_feedback")
+}
+
+// --- Phase 7: workflow / automation engine ---
+
+model Workflow {
+  id               String         @id @default(uuid()) @db.Uuid
+  tenantId         String         @map("tenant_id") @db.Uuid
+  teamId           String?        @map("team_id") @db.Uuid
+  name             String
+  description      String?
+  status           WorkflowStatus @default(active)
+  currentVersionId String?        @map("current_version_id") @db.Uuid
+  createdByUserId  String         @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  versions WorkflowVersion[]
+
+  @@map("workflows")
+}
+
+model WorkflowVersion {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  workflowId      String   @map("workflow_id") @db.Uuid
+  version         Int
+  definition      Json     @default("{}")
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, version])
+  @@map("workflow_versions")
+}
+
+model AutomationRule {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  teamId          String?  @map("team_id") @db.Uuid
+  name            String
+  event           String
+  conditions      Json     @default("[]")
+  actions         Json     @default("[]")
+  enabled         Boolean  @default(true)
+  priority        Int      @default(0)
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, event, enabled])
+  @@map("automation_rules")
+}
+
+model WorkflowRun {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  triggerEvent      String    @map("trigger_event")
+  entityType        String    @map("entity_type")
+  entityId          String    @map("entity_id")
+  sourceRunId       String?   @map("source_run_id") @db.Uuid
+  depth             Int       @default(0)
+  ruleId            String?   @map("rule_id") @db.Uuid
+  workflowVersionId String?   @map("workflow_version_id") @db.Uuid
+  status            RunStatus
+  dedupeKey         String    @map("dedupe_key")
+  startedAt         DateTime  @default(now()) @map("started_at")
+  finishedAt        DateTime? @map("finished_at")
+  error             String?
+
+  tenant Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  steps  WorkflowRunStep[]
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, dedupeKey])
+  @@map("workflow_runs")
+}
+
+model WorkflowRunStep {
+  id         String     @id @default(uuid()) @db.Uuid
+  tenantId   String     @map("tenant_id") @db.Uuid
+  runId      String     @map("run_id") @db.Uuid
+  stepIndex  Int        @map("step_index")
+  actionType String     @map("action_type")
+  input      Json       @default("{}")
+  status     StepStatus
+  output     Json?
+  error      String?
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  run WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, runId])
+  @@map("workflow_run_steps")
+}
+
+// --- Phase 7: channels + keys ---
+
+model Integration {
+  id        String          @id @default(uuid()) @db.Uuid
+  tenantId  String          @map("tenant_id") @db.Uuid
+  kind      IntegrationKind
+  name      String
+  config    Json            @default("{}")
+  secretRef String?         @map("secret_ref")
+  status    String          @default("active")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  webhooks Webhook[]
+
+  @@map("integrations")
+}
+
+model Webhook {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  integrationId  String?   @map("integration_id") @db.Uuid
+  url            String
+  events         String[]  @default([])
+  secretRef      String?   @map("secret_ref")
+  active         Boolean   @default(true)
+  lastStatus     String?   @map("last_status")
+  lastDeliveryAt DateTime? @map("last_delivery_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  integration Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+
+  @@map("webhooks")
+}
+
+model ApiKey {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  name            String
+  prefix          String
+  keyHash         String    @unique @map("key_hash")
+  scopes          String[]  @default([])
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  lastUsedAt      DateTime? @map("last_used_at")
+  expiresAt       DateTime? @map("expires_at")
+  revokedAt       DateTime? @map("revoked_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  activity ApiKeyActivity[]
+
+  @@index([tenantId])
+  @@map("api_keys")
+}
+
+model ApiKeyActivity {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  apiKeyId   String   @map("api_key_id") @db.Uuid
+  route      String
+  method     String
+  status     Int
+  ipAddress  String?  @map("ip_address")
+  occurredAt DateTime @default(now()) @map("occurred_at")
+
+  apiKey ApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, apiKeyId])
+  @@map("api_key_activity")
+}
+
+// --- Phase 7: email-to-ticket ---
+
+/// Global mailbox → tenant routing (resolved BEFORE a tenant context exists, like
+/// sessions/api_keys). NOT RLS. Populated when an email integration is created.
+model MailboxRoute {
+  mailbox     String   @id
+  tenantId    String   @map("tenant_id") @db.Uuid
+  ownerUserId String   @map("owner_user_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("mailbox_routes")
+}
+
+model EmailThread {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  ticketId        String?  @map("ticket_id") @db.Uuid
+  externalThreadId String  @map("external_thread_id")
+  subject         String
+  participants    Json     @default("[]")
+  status          String   @default("open")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages EmailMessage[]
+
+  @@index([tenantId, externalThreadId])
+  @@map("email_threads")
+}
+
+model EmailMessage {
+  id        String         @id @default(uuid()) @db.Uuid
+  tenantId  String         @map("tenant_id") @db.Uuid
+  threadId  String         @map("thread_id") @db.Uuid
+  direction EmailDirection
+  messageId String         @map("message_id")
+  inReplyTo String?        @map("in_reply_to")
+  fromAddr  String         @map("from_addr")
+  toAddrs   Json           @default("[]") @map("to_addrs")
+  bodyText  String         @map("body_text")
+  bodyHtml  String?        @map("body_html")
+  headers   Json           @default("{}")
+  spoofCheck Json          @default("{}") @map("spoof_check")
+  attachments Json         @default("[]")
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  thread EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, threadId])
+  @@map("email_messages")
 }

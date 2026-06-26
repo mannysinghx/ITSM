@@ -58,7 +58,17 @@ Guardrails are in the service layer: every output is `aiSuggested=true`, there i
 auto-close path, and external send is refused unless the tenant explicitly allows it. AI
 config lives in `tenants.settings.ai` and every change is audited. The knowledge base
 (articles + append-only versions + feedback) lands here, fed by AI-generated drafts.
-Phases 7–8 are documented and planned.
+**Phase 7 (Integrations) — complete.** Ticket mutations emit events through one
+dispatcher (`emitEvent`); an automation engine matches enabled rules, evaluates
+conditions, and runs the **synchronous** action set inline (set_priority, assign_team/
+user, add_tag, send_notification, create_task, add_internal_note) while **deferring**
+anything with a wait/retry (webhook, Slack/Teams, escalate) to a worker (ADR-9). Every
+dispatch is recorded in `workflow_runs`/`workflow_run_steps`; a per-cascade dedupe set +
+depth cap guarantee a self-triggering rule terminates. Email-to-ticket parses inbound
+mail into threaded tickets behind a written threat-model (DMARC-fail rejected, tenant
+resolved server-side via a global mailbox route, sender allow/blocklist, signature
+strip). Scoped, hashed API keys with once-shown tokens and append-only activity. Slack/
+Teams/webhook delivery is a mock worker transport. Phase 8 is documented and planned.
 
 ## Stack
 
