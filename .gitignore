@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+.env
+.env.migrate
+.env*.local
+*.log
+.DS_Store
+coverage/
+prisma/*.db
+next-env.d.ts
