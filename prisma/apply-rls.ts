@@ -19,6 +19,17 @@ const TENANT_TABLES = [
   "user_role_assignments",
   "audit_logs",
   "tenant_counters",
+  // Phase 2 (tickets)
+  "ticket_statuses",
+  "ticket_types",
+  "priority_matrix",
+  "categories",
+  "tickets",
+  "ticket_comments",
+  "ticket_history",
+  "ticket_attachments",
+  "ticket_watchers",
+  "ticket_links",
 ];
 
 async function run(sql: string) {
@@ -57,8 +68,10 @@ async function main() {
     `);
   }
 
-  // --- audit_logs is append-only (ADR-8): app role may INSERT + SELECT only ---
+  // --- append-only tables (ADR-8 / INV-5): app role may INSERT + SELECT only.
+  //     FK ON DELETE CASCADE still works (cascades bypass column privileges). ---
   await run(`REVOKE UPDATE, DELETE ON TABLE audit_logs FROM ${APP_ROLE};`);
+  await run(`REVOKE UPDATE, DELETE ON TABLE ticket_history FROM ${APP_ROLE};`);
 
   // --- tenants: visible within active context OR to any of its members (bootstrap/switcher) ---
   await run(`ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;`);

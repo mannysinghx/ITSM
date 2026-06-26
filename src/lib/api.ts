@@ -21,6 +21,12 @@ export function handleError(e: unknown) {
   if (e instanceof ForbiddenError) {
     return fail(e.message, 403);
   }
+  if (e instanceof Error && e.name === "NotFoundError") {
+    return fail(e.message, 404);
+  }
+  if (e instanceof Error && e.name === "UnauthenticatedError") {
+    return fail(e.message, 401);
+  }
   if (e instanceof Error && e.message === "EMAIL_TAKEN") {
     return fail("An account with that email already exists", 409);
   }

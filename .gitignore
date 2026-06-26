@@ -12,3 +12,6 @@ next-env.d.ts
 
 # build info
 tsconfig.tsbuildinfo
+
+# local attachment storage
+.storage/

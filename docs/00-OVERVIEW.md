@@ -14,8 +14,8 @@ plan that fixes the architectural gaps found in review.
 
 | Phase | Title | Theme | Status |
 |------|-------|-------|--------|
-| [1](phases/PHASE-1-foundation.md) | Foundation | Auth, tenant, teams, RBAC, RLS, audit, seed | **In progress** |
-| [2](phases/PHASE-2-tickets.md) | Tickets | Ticket CRUD, queue, detail, comments, history, attachments | Planned |
+| [1](phases/PHASE-1-foundation.md) | Foundation | Auth, tenant, teams, RBAC, RLS, audit, seed | **Complete** |
+| [2](phases/PHASE-2-tickets.md) | Tickets | Ticket CRUD, queue, detail, comments, history, attachments | **Complete** |
 | [3](phases/PHASE-3-admin.md) | Admin | Users, teams, roles, ticket config | Planned |
 | [4](phases/PHASE-4-tasks-slas.md) | Tasks & SLAs | Linked tasks, SLA policies, idempotent SLA worker, escalations | Planned |
 | [5](phases/PHASE-5-service-catalog.md) | Service Catalog | Catalog items, dynamic forms, approvals + chains, routing | Planned |

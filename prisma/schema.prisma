@@ -37,6 +37,46 @@ enum RoleScope {
   team
 }
 
+// --- Phase 2 (Tickets) ---
+
+enum Severity {
+  low
+  medium
+  high
+  critical
+}
+
+enum Priority {
+  p1
+  p2
+  p3
+  p4
+}
+
+enum TicketSource {
+  portal
+  email
+  api
+  admin
+  ai
+}
+
+enum StatusCategory {
+  open
+  pending
+  resolved
+  closed
+  cancelled
+}
+
+enum LinkRelation {
+  relates
+  blocks
+  duplicate
+  parent
+  child
+}
+
 /// Global identity. A user may belong to many tenants. NOT tenant-scoped, NOT RLS.
 model User {
   id            String   @id @default(uuid()) @db.Uuid
@@ -54,6 +94,8 @@ model User {
   teamMemberships  TeamMembership[]
   roleAssignments  UserRoleAssignment[]
   sessions         Session[]
+  requestedTickets Ticket[]           @relation("TicketRequester")
+  assignedTickets  Ticket[]           @relation("TicketAssignee")
 
   @@map("users")
 }
@@ -91,6 +133,11 @@ model Tenant {
   roleAssignments UserRoleAssignment[]
   auditLogs       AuditLog[]
   counter         TenantCounter?
+  tickets         Ticket[]
+  ticketStatuses  TicketStatus[]
+  ticketTypes     TicketType[]
+  priorityMatrix  PriorityMatrixEntry[]
+  categories      Category[]
 
   @@map("tenants")
 }
@@ -124,6 +171,7 @@ model Team {
 
   tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   memberships TeamMembership[]
+  tickets     Ticket[]
 
   @@unique([tenantId, slug])
   @@map("teams")
@@ -239,4 +287,198 @@ model TenantCounter {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("tenant_counters")
+}
+
+// --- Phase 2: ticket configuration (FK tables, seeded read-only in MVP — ADR-5) ---
+
+model TicketStatus {
+  id        String         @id @default(uuid()) @db.Uuid
+  tenantId  String         @map("tenant_id") @db.Uuid
+  key       String
+  name      String
+  category  StatusCategory
+  order     Int            @default(0)
+  isSystem  Boolean        @default(true) @map("is_system")
+  isDefault Boolean        @default(false) @map("is_default")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+
+  @@unique([tenantId, key])
+  @@map("ticket_statuses")
+}
+
+model TicketType {
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  key      String
+  name     String
+  isSystem Boolean @default(true) @map("is_system")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+
+  @@unique([tenantId, key])
+  @@map("ticket_types")
+}
+
+model PriorityMatrixEntry {
+  id       String   @id @default(uuid()) @db.Uuid
+  tenantId String   @map("tenant_id") @db.Uuid
+  impact   Severity
+  urgency  Severity
+  priority Priority
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, impact, urgency])
+  @@map("priority_matrix")
+}
+
+model Category {
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  name     String
+  parentId String? @map("parent_id") @db.Uuid
+  teamId   String? @map("team_id") @db.Uuid
+  isSystem Boolean @default(true) @map("is_system")
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  tickets  Ticket[]
+
+  @@unique([tenantId, name, parentId])
+  @@map("categories")
+}
+
+// --- Phase 2: tickets + children ---
+
+model Ticket {
+  id                 String       @id @default(uuid()) @db.Uuid
+  tenantId           String       @map("tenant_id") @db.Uuid
+  ticketNumber       String       @map("ticket_number")
+  teamId             String       @map("team_id") @db.Uuid
+  requesterId        String       @map("requester_id") @db.Uuid
+  assigneeId         String?      @map("assignee_id") @db.Uuid
+  title              String
+  description        String
+  typeId             String       @map("type_id") @db.Uuid
+  categoryId         String?      @map("category_id") @db.Uuid
+  statusId           String       @map("status_id") @db.Uuid
+  impact             Severity     @default(medium)
+  urgency            Severity     @default(medium)
+  priority           Priority     @default(p3)
+  source             TicketSource @default(portal)
+  channel            String?
+  customFields       Json         @default("{}") @map("custom_fields")
+  tags               String[]     @default([])
+  dueAt              DateTime?    @map("due_at")
+  firstResponseDueAt DateTime?    @map("first_response_due_at")
+  resolutionDueAt    DateTime?    @map("resolution_due_at")
+  resolvedAt         DateTime?    @map("resolved_at")
+  closedAt           DateTime?    @map("closed_at")
+  createdById        String       @map("created_by") @db.Uuid
+  updatedById        String?      @map("updated_by") @db.Uuid
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  team      Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  requester User         @relation("TicketRequester", fields: [requesterId], references: [id])
+  assignee  User?        @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  type      TicketType   @relation(fields: [typeId], references: [id])
+  status    TicketStatus @relation(fields: [statusId], references: [id])
+  category  Category?    @relation(fields: [categoryId], references: [id])
+
+  comments    TicketComment[]
+  history     TicketHistory[]
+  attachments TicketAttachment[]
+  watchers    TicketWatcher[]
+  links       TicketLink[]       @relation("TicketLinkSource")
+
+  @@unique([tenantId, ticketNumber])
+  @@index([tenantId, teamId])
+  @@index([tenantId, statusId])
+  @@index([tenantId, requesterId])
+  @@index([tenantId, assigneeId])
+  @@map("tickets")
+}
+
+model TicketComment {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  ticketId   String   @map("ticket_id") @db.Uuid
+  authorId   String   @map("author_id") @db.Uuid
+  body       String
+  isInternal Boolean  @default(false) @map("is_internal")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, ticketId])
+  @@map("ticket_comments")
+}
+
+model TicketHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  field     String?
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, ticketId, createdAt])
+  @@map("ticket_history")
+}
+
+model TicketAttachment {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  ticketId    String   @map("ticket_id") @db.Uuid
+  commentId   String?  @map("comment_id") @db.Uuid
+  uploaderId  String   @map("uploader_id") @db.Uuid
+  filename    String
+  contentType String   @map("content_type")
+  byteSize    Int      @map("byte_size")
+  storageKey  String   @map("storage_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, ticketId])
+  @@map("ticket_attachments")
+}
+
+model TicketWatcher {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, userId])
+  @@map("ticket_watchers")
+}
+
+model TicketLink {
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  ticketId       String       @map("ticket_id") @db.Uuid
+  linkedTicketId String       @map("linked_ticket_id") @db.Uuid
+  relation       LinkRelation @default(relates)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  ticket Ticket @relation("TicketLinkSource", fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, linkedTicketId, relation])
+  @@map("ticket_links")
 }

@@ -4,6 +4,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { systemRoleId } from "@/lib/bootstrap";
 import { writeAudit } from "@/lib/audit";
 import { slugify } from "@/lib/validation";
+import { seedTenantConfig } from "@/lib/tickets/config";
 
 export interface ProvisionResult {
   userId: string;
@@ -47,6 +48,9 @@ async function provisionTenant(opts: {
     });
 
     await tx.tenantCounter.create({ data: { tenantId } });
+
+    // Seed ticket config (statuses/types/priority matrix/categories) for this tenant.
+    await seedTenantConfig(tx, tenantId);
 
     await tx.tenantMembership.create({
       data: { tenantId, userId: opts.userId, status: "active" },

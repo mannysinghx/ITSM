@@ -11,8 +11,15 @@ Postgres Row-Level Security, not just in application code.
 
 **Phase 1 (Foundation) — complete.** Auth (individual + company signup, login, logout,
 sessions), unified tenant model, teams, memberships, the RBAC authorization engine,
-RLS-enforced tenant isolation, append-only audit, and seed data. Phases 2–8 are
-documented and planned.
+RLS-enforced tenant isolation, append-only audit, and seed data.
+
+**Phase 2 (Tickets) — complete.** Ticket CRUD, queue (table + kanban) with filters and
+search, detail page (spec §21.4), public comments + internal notes (hidden from
+requesters), assignment, status transitions, attachments, and a history timeline.
+Tenant-isolated via RLS; access resolved by a single `canReadTicket`/`canWriteTicket`
+gate whose list-filter counterpart is property-tested to agree (INV-2). FK config
+tables for statuses/types, configurable priority matrix, and atomic per-tenant ticket
+numbering. Phases 3–8 are documented and planned.
 
 ## Stack
 

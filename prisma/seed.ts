@@ -3,6 +3,22 @@ import { ensureSystemRolesAndPermissions, systemRoleId } from "@/lib/bootstrap";
 import { provisionIndividual, provisionCompany } from "@/lib/provisioning";
 import { hashPassword } from "@/lib/auth/password";
 import { slugify } from "@/lib/validation";
+import { PERMISSION_KEYS } from "@/lib/permissions";
+import type { AuthContext } from "@/lib/authz";
+import { createTicket, addComment } from "@/lib/tickets/service";
+
+/** Builds an owner-level AuthContext (all permissions) for seeding tickets. */
+async function ownerCtx(tenantId: string, userId: string): Promise<AuthContext> {
+  const teams = await withTenant(tenantId, userId, (tx) =>
+    tx.teamMembership.findMany({ where: { userId }, select: { teamId: true } }),
+  );
+  return {
+    userId,
+    tenantId,
+    teamIds: teams.map((t) => t.teamId),
+    permissionKeys: new Set(PERMISSION_KEYS),
+  };
+}
 
 /** Adds a user to a tenant + team with a system role (demo data). */
 async function addMember(
@@ -43,7 +59,7 @@ async function main() {
   await ensureSystemRolesAndPermissions();
 
   console.log("Seeding individual demo tenant…");
-  await provisionIndividual({
+  const ind = await provisionIndividual({
     name: "Demo Individual",
     email: "individual@example.com",
     password: "password123",
@@ -89,6 +105,66 @@ async function main() {
     itSupport.id,
     "requester",
   );
+
+  console.log("Seeding demo tickets…");
+  const acmeCtx = await ownerCtx(acme.tenantId, acme.userId);
+  const emailOutage = await createTicket(acmeCtx, {
+    title: "Company-wide email outage",
+    description: "Users across all offices cannot send or receive email since 09:00.",
+    type: "incident",
+    teamId: itSupport.id,
+    impact: "critical",
+    urgency: "critical",
+  });
+  await addComment(acmeCtx, emailOutage.id, "Escalating to Microsoft 365 support.", true);
+  await createTicket(acmeCtx, {
+    title: "VPN access request for new contractor",
+    description: "Please grant VPN access to contractor J. Doe for the duration of the project.",
+    type: "access_request",
+    teamId: itSupport.id,
+    impact: "low",
+    urgency: "medium",
+  });
+  await createTicket(acmeCtx, {
+    title: "New laptop setup for employee",
+    description: "Provision and configure a laptop for the new hire starting Monday.",
+    type: "service_request",
+    teamId: itSupport.id,
+    impact: "medium",
+    urgency: "medium",
+  });
+  await createTicket(acmeCtx, {
+    title: "Phishing email reported by finance",
+    description: "Suspicious email impersonating the CFO requesting a wire transfer.",
+    type: "security_event",
+    teamId: securityId,
+    impact: "high",
+    urgency: "high",
+  });
+  await createTicket(acmeCtx, {
+    title: "Printer on 3rd floor not working",
+    description: "The shared printer reports a paper jam that cannot be cleared.",
+    type: "incident",
+    teamId: itSupport.id,
+    impact: "low",
+    urgency: "low",
+  });
+
+  const indCtx = await ownerCtx(ind.tenantId, ind.userId);
+  await createTicket(indCtx, {
+    title: "Set up password manager",
+    description: "Personal task: choose and configure a password manager.",
+    type: "task",
+    impact: "low",
+    urgency: "low",
+  });
+  await createTicket(indCtx, {
+    title: "Laptop battery draining fast",
+    description: "Battery health degraded; investigate replacement options.",
+    type: "incident",
+    impact: "medium",
+    urgency: "low",
+  });
 
   console.log("\nSeed complete. Demo logins (password: password123):");
   console.log("  individual@example.com   (individual owner)");
