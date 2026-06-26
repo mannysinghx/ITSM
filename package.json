@@ -15,6 +15,8 @@
     "seed": "dotenv -e .env.migrate -- tsx prisma/seed.ts",
     "release": "bash scripts/release.sh",
     "seed:prod": "tsx prisma/seed.ts",
+    "demo:seed": "tsx prisma/seed-demo.ts",
+    "demo:purge": "tsx prisma/purge-demo.ts",
     "test": "dotenv -e .env -- vitest run",
     "test:watch": "dotenv -e .env -- vitest"
   },
