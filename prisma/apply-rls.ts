@@ -30,6 +30,8 @@ const TENANT_TABLES = [
   "ticket_attachments",
   "ticket_watchers",
   "ticket_links",
+  // Phase 3 (admin)
+  "ticket_field_defs",
 ];
 
 async function run(sql: string) {

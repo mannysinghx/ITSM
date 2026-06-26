@@ -19,7 +19,16 @@ requesters), assignment, status transitions, attachments, and a history timeline
 Tenant-isolated via RLS; access resolved by a single `canReadTicket`/`canWriteTicket`
 gate whose list-filter counterpart is property-tested to agree (INV-2). FK config
 tables for statuses/types, configurable priority matrix, and atomic per-tenant ticket
-numbering. Phases 3–8 are documented and planned.
+numbering.
+
+**Phase 3 (Admin) — complete.** Admin area (`/app/admin/*`) gated on an admin-tier
+permission: overview dashboard, user management (invite/suspend/assign role+team),
+team management (create/edit/archive/members), roles & permissions (system + custom,
+allow-only union), ticket configuration (types, statuses, priority matrix, categories,
+custom-field defs — the Phase 2 read-only config becomes editable here), and a
+read-only audit-log viewer. Every admin route is `requirePermission`-gated and every
+mutation writes an `audit_logs` row in the same transaction. Phases 4–8 are documented
+and planned.
 
 ## Stack
 

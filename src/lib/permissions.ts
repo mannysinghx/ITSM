@@ -20,15 +20,20 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: "user.invite", description: "Invite users", category: "user" },
   { key: "user.update", description: "Update users", category: "user" },
   { key: "user.suspend", description: "Suspend users", category: "user" },
+  { key: "user.manage", description: "Manage users (admin)", category: "user" },
   // teams
   { key: "team.create", description: "Create teams", category: "team" },
   { key: "team.update", description: "Update teams", category: "team" },
   { key: "team.delete", description: "Delete teams", category: "team" },
   { key: "team.manage_members", description: "Manage team members", category: "team" },
+  { key: "team.manage", description: "Manage teams (admin)", category: "team" },
   // roles
   { key: "role.create", description: "Create roles", category: "role" },
   { key: "role.update", description: "Update roles", category: "role" },
   { key: "role.assign", description: "Assign roles", category: "role" },
+  { key: "role.manage", description: "Manage roles (admin)", category: "role" },
+  // ticket configuration
+  { key: "ticket.config.manage", description: "Edit ticket configuration", category: "ticket" },
   // tickets (scoped: own/team/all)
   { key: "ticket.create", description: "Create tickets", category: "ticket" },
   { key: "ticket.read.own", description: "Read own tickets", category: "ticket" },

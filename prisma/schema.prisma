@@ -77,6 +77,16 @@ enum LinkRelation {
   child
 }
 
+// --- Phase 3 (Admin) ---
+
+enum FieldType {
+  text
+  number
+  select
+  date
+  bool
+}
+
 /// Global identity. A user may belong to many tenants. NOT tenant-scoped, NOT RLS.
 model User {
   id            String   @id @default(uuid()) @db.Uuid
@@ -138,6 +148,7 @@ model Tenant {
   ticketTypes     TicketType[]
   priorityMatrix  PriorityMatrixEntry[]
   categories      Category[]
+  ticketFieldDefs TicketFieldDef[]
 
   @@map("tenants")
 }
@@ -481,4 +492,26 @@ model TicketLink {
 
   @@unique([ticketId, linkedTicketId, relation])
   @@map("ticket_links")
+}
+
+/// Custom-field definitions driving tickets.customFields JSONB (ADR-5, not filterable).
+model TicketFieldDef {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  key        String
+  label      String
+  fieldType  FieldType @default(text) @map("field_type")
+  options    Json      @default("[]")
+  required   Boolean   @default(false)
+  visibility Json      @default("{}")
+  validation Json      @default("{}")
+  order      Int       @default(0)
+  isSystem   Boolean   @default(false) @map("is_system")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@map("ticket_field_defs")
 }

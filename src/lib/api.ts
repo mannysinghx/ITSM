@@ -24,6 +24,12 @@ export function handleError(e: unknown) {
   if (e instanceof Error && e.name === "NotFoundError") {
     return fail(e.message, 404);
   }
+  if (e instanceof Error && e.name === "ConflictError") {
+    return fail(e.message, 409);
+  }
+  if (e instanceof Error && e.name === "ValidationError") {
+    return fail(e.message, 400);
+  }
   if (e instanceof Error && e.name === "UnauthenticatedError") {
     return fail(e.message, 401);
   }
