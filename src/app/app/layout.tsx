@@ -4,6 +4,7 @@ import { getAuthContext } from "@/lib/auth/context";
 import { withTenant } from "@/lib/db";
 import { hasPermission } from "@/lib/authz";
 import { LogoutButton } from "@/components/LogoutButton";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const NAV = [
   { href: "/app/dashboard", label: "Dashboard" },
@@ -60,7 +61,10 @@ export default async function AppLayout({
           <span className="text-sm text-slate-500">
             {tenant?.type === "company" ? "Company workspace" : "Personal workspace"}
           </span>
-          <LogoutButton />
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <LogoutButton />
+          </div>
         </header>
         <main className="flex-1 p-6">{children}</main>
       </div>

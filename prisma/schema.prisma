@@ -87,6 +87,21 @@ enum FieldType {
   bool
 }
 
+// --- Phase 4 (Tasks & SLAs) ---
+
+enum TaskStatus {
+  todo
+  in_progress
+  blocked
+  done
+  cancelled
+}
+
+enum SlaKind {
+  first_response
+  resolution
+}
+
 /// Global identity. A user may belong to many tenants. NOT tenant-scoped, NOT RLS.
 model User {
   id            String   @id @default(uuid()) @db.Uuid
@@ -106,6 +121,9 @@ model User {
   sessions         Session[]
   requestedTickets Ticket[]           @relation("TicketRequester")
   assignedTickets  Ticket[]           @relation("TicketAssignee")
+  assignedTasks    Task[]             @relation("TaskAssignee")
+  notifications    Notification[]
+  notificationPrefs NotificationPreference[]
 
   @@map("users")
 }
@@ -149,6 +167,9 @@ model Tenant {
   priorityMatrix  PriorityMatrixEntry[]
   categories      Category[]
   ticketFieldDefs TicketFieldDef[]
+  slaPolicies     SLAPolicy[]
+  businessHours   BusinessHours[]
+  holidayCalendars HolidayCalendar[]
 
   @@map("tenants")
 }
@@ -183,6 +204,7 @@ model Team {
   tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   memberships TeamMembership[]
   tickets     Ticket[]
+  tasks       Task[]
 
   @@unique([tenantId, slug])
   @@map("teams")
@@ -407,6 +429,8 @@ model Ticket {
   attachments TicketAttachment[]
   watchers    TicketWatcher[]
   links       TicketLink[]       @relation("TicketLinkSource")
+  tasks       Task[]             @relation("TicketTasks")
+  slaTimers   SLATimer[]
 
   @@unique([tenantId, ticketNumber])
   @@index([tenantId, teamId])
@@ -514,4 +538,177 @@ model TicketFieldDef {
 
   @@unique([tenantId, key])
   @@map("ticket_field_defs")
+}
+
+// --- Phase 4: tasks ---
+
+model Task {
+  id          String     @id @default(uuid()) @db.Uuid
+  tenantId    String     @map("tenant_id") @db.Uuid
+  teamId      String     @map("team_id") @db.Uuid
+  ticketId    String?    @map("ticket_id") @db.Uuid
+  title       String
+  description String?
+  status      TaskStatus @default(todo)
+  priority    Priority   @default(p3)
+  assigneeId  String?    @map("assignee_id") @db.Uuid
+  dueAt       DateTime?  @map("due_at")
+  createdById String     @map("created_by") @db.Uuid
+  updatedById String?    @map("updated_by") @db.Uuid
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  team     Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  ticket   Ticket? @relation("TicketTasks", fields: [ticketId], references: [id], onDelete: SetNull)
+  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  comments TaskComment[]
+  history  TaskHistory[]
+
+  @@index([tenantId, teamId])
+  @@index([tenantId, ticketId])
+  @@index([tenantId, assigneeId])
+  @@map("tasks")
+}
+
+model TaskComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  taskId    String   @map("task_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, taskId])
+  @@map("task_comments")
+}
+
+model TaskHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  taskId    String   @map("task_id") @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  field     String?
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, taskId, createdAt])
+  @@map("task_history")
+}
+
+// --- Phase 4: SLA ---
+
+model SLAPolicy {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  teamId               String?  @map("team_id") @db.Uuid
+  name                 String
+  description          String?
+  ticketType           String?  @map("ticket_type")
+  priority             Priority?
+  firstResponseMinutes Int      @map("first_response_minutes")
+  resolutionMinutes    Int      @map("resolution_minutes")
+  businessHoursId      String?  @map("business_hours_id") @db.Uuid
+  enabled              Boolean  @default(true)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  timers SLATimer[]
+
+  @@index([tenantId, enabled])
+  @@map("sla_policies")
+}
+
+model SLATimer {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  ticketId    String    @map("ticket_id") @db.Uuid
+  slaPolicyId String?   @map("sla_policy_id") @db.Uuid
+  kind        SlaKind
+  dueAt       DateTime  @map("due_at")
+  warnAt      DateTime  @map("warn_at")
+  startedAt   DateTime  @default(now()) @map("started_at")
+  pausedAt    DateTime? @map("paused_at")
+  warnedAt    DateTime? @map("warned_at")
+  breachedAt  DateTime? @map("breached_at")
+  satisfiedAt DateTime? @map("satisfied_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  ticket    Ticket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  slaPolicy SLAPolicy? @relation(fields: [slaPolicyId], references: [id], onDelete: SetNull)
+
+  @@unique([ticketId, kind])
+  @@index([tenantId, satisfiedAt])
+  @@map("sla_timers")
+}
+
+model BusinessHours {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  name           String
+  timezone       String   @default("UTC")
+  weeklySchedule Json     @default("{}") @map("weekly_schedule")
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("business_hours")
+}
+
+model HolidayCalendar {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  dates     Json     @default("[]")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("holiday_calendars")
+}
+
+// --- Phase 4: notifications ---
+
+model Notification {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  title      String
+  body       String
+  type       String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  readAt     DateTime? @map("read_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, readAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  eventType String   @map("event_type")
+  inApp     Boolean  @default(true) @map("in_app")
+  email     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventType])
+  @@map("notification_preferences")
 }

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { PriorityBadge, StatusBadge } from "@/components/tickets/badges";
+import { SlaPanel } from "@/components/tickets/SlaPanel";
+import { LinkedTasks } from "@/components/tickets/LinkedTasks";
 
 interface Comment {
   id: string;
@@ -207,6 +209,8 @@ export function TicketDetail({ id }: { id: string }) {
             <input type="file" onChange={uploadFile} disabled={busy} className="text-sm" />
           </section>
 
+          <LinkedTasks ticketId={t.id} teamId={t.team.id} />
+
           <section className="rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="mb-2 text-sm font-semibold text-slate-500">History</h2>
             <ol className="space-y-2 text-sm">
@@ -236,9 +240,9 @@ export function TicketDetail({ id }: { id: string }) {
             <Detail label="Tags" value={t.tags.length ? t.tags.join(", ") : "—"} />
             <Detail label="Created" value={new Date(t.createdAt).toLocaleString()} />
           </div>
+          <SlaPanel ticketId={t.id} />
           <div className="rounded-lg border border-dashed border-slate-300 p-4 text-xs text-slate-400">
-            SLA timers (Phase 4), linked tasks (Phase 4), linked assets &amp; knowledge
-            suggestions (Phases 5–6) appear here.
+            Linked assets &amp; knowledge suggestions (Phases 5–6) appear here.
           </div>
         </aside>
       </div>

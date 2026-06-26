@@ -9,6 +9,7 @@ const ADMIN_NAV = [
   { href: "/app/admin/teams", label: "Teams" },
   { href: "/app/admin/roles", label: "Roles & Permissions" },
   { href: "/app/admin/ticket-config", label: "Ticket Configuration" },
+  { href: "/app/admin/slas", label: "SLAs" },
   { href: "/app/admin/audit-logs", label: "Audit Logs" },
 ];
 

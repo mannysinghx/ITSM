@@ -32,6 +32,16 @@ const TENANT_TABLES = [
   "ticket_links",
   // Phase 3 (admin)
   "ticket_field_defs",
+  // Phase 4 (tasks & SLAs)
+  "tasks",
+  "task_comments",
+  "task_history",
+  "sla_policies",
+  "sla_timers",
+  "business_hours",
+  "holiday_calendars",
+  "notifications",
+  "notification_preferences",
 ];
 
 async function run(sql: string) {
@@ -74,6 +84,7 @@ async function main() {
   //     FK ON DELETE CASCADE still works (cascades bypass column privileges). ---
   await run(`REVOKE UPDATE, DELETE ON TABLE audit_logs FROM ${APP_ROLE};`);
   await run(`REVOKE UPDATE, DELETE ON TABLE ticket_history FROM ${APP_ROLE};`);
+  await run(`REVOKE UPDATE, DELETE ON TABLE task_history FROM ${APP_ROLE};`);
 
   // --- tenants: visible within active context OR to any of its members (bootstrap/switcher) ---
   await run(`ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;`);

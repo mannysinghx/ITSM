@@ -27,8 +27,16 @@ team management (create/edit/archive/members), roles & permissions (system + cus
 allow-only union), ticket configuration (types, statuses, priority matrix, categories,
 custom-field defs — the Phase 2 read-only config becomes editable here), and a
 read-only audit-log viewer. Every admin route is `requirePermission`-gated and every
-mutation writes an `audit_logs` row in the same transaction. Phases 4–8 are documented
-and planned.
+mutation writes an `audit_logs` row in the same transaction.
+
+**Phase 4 (Tasks & SLAs) — complete.** Tasks (standalone or ticket-linked) with a status
+board, assignee, due date, and history. SLA policies (matched by type/priority/team,
+most-specific wins) that stamp first-response/resolution due dates and insert
+`sla_timers` rows **at ticket creation**. An idempotent `checkSlaBreaches()` worker that
+warns → breaches → escalates exactly once per timer (the `warnedAt`/`breachedAt` columns
+are the latches), callable headless or via a manual trigger endpoint. In-app + mock-email
+notifications honoring per-user preferences. SLA math is calendar-time (labeled as such);
+business-hours/holiday math is deferred. Phases 5–8 are documented and planned.
 
 ## Stack
 

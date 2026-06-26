@@ -37,6 +37,21 @@ export const updateRoleSchema = z.object({
   cloneFrom: z.string().uuid().optional(),
 });
 
+const priority = z.enum(["p1", "p2", "p3", "p4"]);
+
+export const slaPolicySchema = z.object({
+  name: z.string().min(1).max(160),
+  description: z.string().max(500).optional(),
+  teamId: z.string().uuid().nullable().optional(),
+  ticketType: z.string().nullable().optional(),
+  priority: priority.nullable().optional(),
+  firstResponseMinutes: z.number().int().positive(),
+  resolutionMinutes: z.number().int().positive(),
+  enabled: z.boolean().optional(),
+});
+
+export const slaPolicyUpdateSchema = slaPolicySchema.partial();
+
 export const configMutationSchema = z.object({
   resource: z.enum(["type", "status", "matrix", "category", "field"]),
   op: z.enum(["create", "update", "delete"]),

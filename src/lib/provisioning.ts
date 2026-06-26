@@ -5,6 +5,7 @@ import { systemRoleId } from "@/lib/bootstrap";
 import { writeAudit } from "@/lib/audit";
 import { slugify } from "@/lib/validation";
 import { seedTenantConfig } from "@/lib/tickets/config";
+import { seedTenantSla } from "@/lib/sla/config";
 
 export interface ProvisionResult {
   userId: string;
@@ -51,6 +52,8 @@ async function provisionTenant(opts: {
 
     // Seed ticket config (statuses/types/priority matrix/categories) for this tenant.
     await seedTenantConfig(tx, tenantId);
+    // Seed default SLA policies + business hours (calendar-time MVP, ADR-9).
+    await seedTenantSla(tx, tenantId);
 
     await tx.tenantMembership.create({
       data: { tenantId, userId: opts.userId, status: "active" },

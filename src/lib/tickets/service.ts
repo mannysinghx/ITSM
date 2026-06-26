@@ -11,6 +11,7 @@ import { canReadTicket, canWriteTicket, ticketReadFilter } from "@/lib/tickets/a
 import { allocateTicketNumber } from "@/lib/tickets/number";
 import { resolvePriority } from "@/lib/tickets/priority";
 import { recordHistory } from "@/lib/tickets/history";
+import { applySla, satisfyFirstResponse, satisfyResolution } from "@/lib/sla/timers";
 import {
   DEFAULT_TYPE_KEY,
   RESOLVED_STATUS_KEY,
@@ -58,8 +59,9 @@ export async function createTicket(ctx: AuthContext, input: CreateTicketInput) {
       teamId = def.id;
     }
 
+    const typeKey = input.type ?? DEFAULT_TYPE_KEY;
     const type = await tx.ticketType.findUnique({
-      where: { tenantId_key: { tenantId: ctx.tenantId, key: input.type ?? DEFAULT_TYPE_KEY } },
+      where: { tenantId_key: { tenantId: ctx.tenantId, key: typeKey } },
       select: { id: true },
     });
     if (!type) throw new NotFoundError("Unknown ticket type");
@@ -112,6 +114,11 @@ export async function createTicket(ctx: AuthContext, input: CreateTicketInput) {
       action: "created",
       newValue: ticketNumber,
       metadata: { title: input.title, priority },
+    });
+
+    // Stamp SLA due dates + insert timers in the same tx (ADR-6, acceptance #10).
+    await applySla(tx, ctx.tenantId, {
+      ticketId: ticket.id, ticketType: typeKey, priority, teamId,
     });
 
     return ticket;
@@ -344,6 +351,11 @@ export async function changeStatus(ctx: AuthContext, id: string, toKey: string) 
     }
 
     const updated = await tx.ticket.update({ where: { id }, data });
+
+    // Resolving/closing satisfies the resolution SLA timer (stops the clock).
+    if (toKey === RESOLVED_STATUS_KEY || toKey === CLOSED_STATUS_KEY) {
+      await satisfyResolution(tx, id);
+    }
     await recordHistory(tx, {
       tenantId: ctx.tenantId,
       ticketId: id,
@@ -434,6 +446,11 @@ export async function addComment(
       action: "commented",
       metadata: { internal: isInternal },
     });
+
+    // A public reply from anyone other than the requester satisfies first-response SLA.
+    if (!isInternal && ticket.requesterId !== ctx.userId) {
+      await satisfyFirstResponse(tx, id);
+    }
     return comment;
   });
 }
