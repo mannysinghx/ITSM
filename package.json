@@ -17,6 +17,7 @@
     "seed:prod": "tsx prisma/seed.ts",
     "demo:seed": "tsx prisma/seed-demo.ts",
     "demo:purge": "tsx prisma/purge-demo.ts",
+    "demo:fill-accounts": "tsx prisma/fill-accounts.ts",
     "test": "dotenv -e .env -- vitest run",
     "test:watch": "dotenv -e .env -- vitest"
   },

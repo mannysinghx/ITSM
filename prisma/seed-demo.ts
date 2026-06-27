@@ -92,9 +92,9 @@ async function markDemo(tenantId: string, ownerId: string, label: string) {
   });
 }
 
-async function makeUser(tenantId: string, name: string, local: string, teamId: string, roleKey: string) {
+async function makeUser(tenantId: string, name: string, local: string, teamId: string, roleKey: string, domain = DEMO_EMAIL_DOMAIN) {
   const roleId = await systemRoleId(roleKey);
-  const user = await prisma.user.create({ data: { name, email: `${local}${DEMO_EMAIL_DOMAIN}`, passwordHash: await hashPassword(DEMO_PW) } });
+  const user = await prisma.user.create({ data: { name, email: `${local}${domain}`, passwordHash: await hashPassword(DEMO_PW) } });
   await withTenant(tenantId, user.id, async (tx) => {
     await tx.tenantMembership.create({ data: { tenantId, userId: user.id, status: "active" } });
     await tx.userRoleAssignment.create({ data: { tenantId, userId: user.id, roleId, teamId } });
@@ -131,14 +131,18 @@ async function progress<T>(label: string, items: (() => Promise<T>)[]) {
   process.stdout.write("\n");
 }
 
-async function seedCompany() {
-  console.log("Creating demo company (Globex Demo Corp)…");
-  const owner = await provisionCompany({ name: "Demo Admin", companyName: "Globex Demo Corp", email: `owner${DEMO_EMAIL_DOMAIN}`, password: DEMO_PW });
-  await markDemo(owner.tenantId, owner.userId, "Globex Demo Corp");
+/** Fills an existing company tenant with a complete demo dataset. `tag` namespaces the
+ *  generated sub-user emails so the same dataset can be applied to multiple companies. */
+export async function populateCompany(
+  owner: { tenantId: string; userId: string; defaultTeamId: string },
+  label: string, markAsDemo: boolean, tag: string, userDomain = DEMO_EMAIL_DOMAIN,
+) {
+  if (markAsDemo) await markDemo(owner.tenantId, owner.userId, label);
+  else await liftPlan(owner.tenantId, owner.userId);
   const T = owner.tenantId;
 
   const teams = await withTenant(T, owner.userId, async (tx) => {
-    for (const n of ["Security", "Facilities"]) await tx.team.create({ data: { tenantId: T, name: n, slug: `${n.toLowerCase()}-demo` } });
+    await tx.team.createMany({ data: ["Security", "Facilities"].map((n) => ({ tenantId: T, name: n, slug: `${n.toLowerCase()}-demo` })), skipDuplicates: true });
     return tx.team.findMany({ where: { tenantId: T }, select: { id: true, name: true } });
   });
   const teamId = (n: string) => teams.find((t) => t.name === n)!.id;
@@ -146,20 +150,21 @@ async function seedCompany() {
   const categoryIds = await withTenant(T, owner.userId, (tx) => tx.category.findMany({ where: { tenantId: T }, select: { id: true } })).then((c) => c.map((x) => x.id));
 
   console.log("Adding users (managers, agents, requesters)…");
-  const itManager = await makeUser(T, "Ivy Chen", "ivy.manager", teamId("IT Support"), "team_manager");
-  const secManager = await makeUser(T, "Marcus Webb", "marcus.security", teamId("Security"), "team_manager");
+  const mk = (name: string, local: string, tId: string, role: string) => makeUser(T, name, `${local}${tag}`, tId, role, userDomain);
+  const itManager = await mk("Ivy Chen", "ivy.manager", teamId("IT Support"), "team_manager");
+  const secManager = await mk("Marcus Webb", "marcus.security", teamId("Security"), "team_manager");
   const agents = [
-    await makeUser(T, "Alex Rivera", "alex.agent", teamId("IT Support"), "agent"),
-    await makeUser(T, "Sam Patel", "sam.agent", teamId("IT Support"), "agent"),
-    await makeUser(T, "Dana Kim", "dana.agent", teamId("IT Support"), "agent"),
-    await makeUser(T, "Priya Singh", "priya.security", teamId("Security"), "agent"),
-    await makeUser(T, "Tom Fischer", "tom.facilities", teamId("Facilities"), "agent"),
+    await mk("Alex Rivera", "alex.agent", teamId("IT Support"), "agent"),
+    await mk("Sam Patel", "sam.agent", teamId("IT Support"), "agent"),
+    await mk("Dana Kim", "dana.agent", teamId("IT Support"), "agent"),
+    await mk("Priya Singh", "priya.security", teamId("Security"), "agent"),
+    await mk("Tom Fischer", "tom.facilities", teamId("Facilities"), "agent"),
   ];
   const requesters = [
-    await makeUser(T, "Riley Brooks", "riley", teamId("General Requests"), "requester"),
-    await makeUser(T, "Jordan Lee", "jordan", teamId("General Requests"), "requester"),
-    await makeUser(T, "Casey Morgan", "casey", teamId("General Requests"), "requester"),
-    await makeUser(T, "Avery Nguyen", "avery", teamId("General Requests"), "requester"),
+    await mk("Riley Brooks", "riley", teamId("General Requests"), "requester"),
+    await mk("Jordan Lee", "jordan", teamId("General Requests"), "requester"),
+    await mk("Casey Morgan", "casey", teamId("General Requests"), "requester"),
+    await mk("Avery Nguyen", "avery", teamId("General Requests"), "requester"),
   ];
   const ownerCtx = ctxOf(owner.userId, T, allTeamIds);
   const itMgrCtx = ctxOf(itManager, T, allTeamIds);
@@ -257,10 +262,24 @@ async function seedCompany() {
   return owner;
 }
 
-async function seedIndividual() {
-  console.log("Creating demo individual workspace…");
-  const ind = await provisionIndividual({ name: "Demo Individual", email: `individual${DEMO_EMAIL_DOMAIN}`, password: DEMO_PW });
-  await markDemo(ind.tenantId, ind.userId, "Demo Individual Workspace");
+async function liftPlan(tenantId: string, ownerId: string) {
+  await withTenant(tenantId, ownerId, (tx) =>
+    tx.billingAccount.update({ where: { tenantId }, data: { plan: "enterprise", limits: PLAN_LIMITS.enterprise as object } }),
+  );
+}
+
+async function seedCompany() {
+  console.log("Creating demo company (Globex Demo Corp)…");
+  const owner = await provisionCompany({ name: "Demo Admin", companyName: "Globex Demo Corp", email: `owner${DEMO_EMAIL_DOMAIN}`, password: DEMO_PW });
+  return populateCompany(owner, "Globex Demo Corp", true, "");
+}
+
+/** Fills an existing individual workspace with personal tickets/tasks/notes. */
+export async function populatePersonal(
+  ind: { tenantId: string; userId: string; defaultTeamId: string }, markAsDemo: boolean,
+) {
+  if (markAsDemo) await markDemo(ind.tenantId, ind.userId, "Demo Individual Workspace");
+  else await liftPlan(ind.tenantId, ind.userId);
   const ctx = ctxOf(ind.userId, ind.tenantId, [ind.defaultTeamId]);
   const categoryIds = await withTenant(ind.tenantId, ind.userId, (tx) => tx.category.findMany({ where: { tenantId: ind.tenantId }, select: { id: true } })).then((c) => c.map((x) => x.id));
 
@@ -270,6 +289,12 @@ async function seedIndividual() {
   }));
   for (const [title, body] of [["My VPN setup notes", "Steps I followed to get the VPN working."], ["Useful shortcuts", "A few keyboard shortcuts I keep forgetting."]] as [string, string][])
     await createArticle(ctx, { title, body, status: "published", source: "human" });
+}
+
+async function seedIndividual() {
+  console.log("Creating demo individual workspace…");
+  const ind = await provisionIndividual({ name: "Demo Individual", email: `individual${DEMO_EMAIL_DOMAIN}`, password: DEMO_PW });
+  await populatePersonal(ind, true);
 }
 
 async function main() {
