@@ -30,15 +30,20 @@ interface Ctx {
  * connection-pool identity bleed that plain `SET` would cause (ADR-2).
  */
 async function runWithContext<T>(ctx: Ctx, fn: (tx: Tx) => Promise<T>): Promise<T> {
-  return prisma.$transaction(async (tx) => {
-    if (ctx.userId) {
-      await tx.$executeRaw`SELECT set_config('app.current_user_id', ${ctx.userId}, true)`;
-    }
-    if (ctx.tenantId) {
-      await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${ctx.tenantId}, true)`;
-    }
-    return fn(tx);
-  });
+  return prisma.$transaction(
+    async (tx) => {
+      if (ctx.userId) {
+        await tx.$executeRaw`SELECT set_config('app.current_user_id', ${ctx.userId}, true)`;
+      }
+      if (ctx.tenantId) {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${ctx.tenantId}, true)`;
+      }
+      return fn(tx);
+    },
+    // The per-transaction context model (ADR-2) means multi-step services run in one
+    // transaction; the default 5s is tight on managed/networked Postgres. 15s ceiling.
+    { timeout: 15_000, maxWait: 10_000 },
+  );
 }
 
 /** Run tenant-scoped work. `tenantId` MUST come from the session, never from input. */

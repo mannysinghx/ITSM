@@ -165,11 +165,12 @@ async function seedDemoCompany() {
   const agentIds = userIds.slice(0, 6); // managers + agents
 
   console.log(`Generating ${COMPANY_TICKETS} demo tickets…`);
+  // Sequential: parallel creates contend on the per-tenant ticket-number counter row.
   await inBatches(
     Array.from({ length: COMPANY_TICKETS }, () => () =>
       makeTicket(rand(requesterCtxs), rand(teams).id, agentIds, categoryIds),
     ),
-    5,
+    1,
   );
   return owner;
 }
@@ -190,7 +191,7 @@ async function seedDemoIndividual() {
     Array.from({ length: INDIV_TICKETS }, () => () =>
       makeTicket(ctx, ind.defaultTeamId, [], categoryIds),
     ),
-    5,
+    1,
   );
 
   console.log(`Generating ${INDIV_TASKS} personal tasks…`);
