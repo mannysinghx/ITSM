@@ -135,10 +135,12 @@ async function seedDemoCompany() {
     for (const name of ["Security", "Facilities"]) {
       await tx.team.create({ data: { tenantId: owner.tenantId, name, slug: `${name.toLowerCase()}-demo` } });
     }
-    return tx.team.findMany({ select: { id: true, name: true } });
+    // Explicit tenant filter: the seed runs as the owner role (BYPASSRLS), so an
+    // unscoped findMany would return every tenant's rows.
+    return tx.team.findMany({ where: { tenantId: owner.tenantId }, select: { id: true, name: true } });
   });
   const categoryIds = await withTenant(owner.tenantId, owner.userId, (tx) =>
-    tx.category.findMany({ select: { id: true } }),
+    tx.category.findMany({ where: { tenantId: owner.tenantId }, select: { id: true } }),
   ).then((c) => c.map((x) => x.id));
   const itSupport = teams.find((t) => t.name === "IT Support")!.id;
 
@@ -183,7 +185,7 @@ async function seedDemoIndividual() {
   await markDemo(ind.tenantId, ind.userId, "Demo Individual Workspace");
   const ctx = ctxOf(ind.userId, ind.tenantId, [ind.defaultTeamId]);
   const categoryIds = await withTenant(ind.tenantId, ind.userId, (tx) =>
-    tx.category.findMany({ select: { id: true } }),
+    tx.category.findMany({ where: { tenantId: ind.tenantId }, select: { id: true } }),
   ).then((c) => c.map((x) => x.id));
 
   console.log(`Generating ${INDIV_TICKETS} personal tickets…`);

@@ -82,6 +82,10 @@ export async function createTicketTx(
       if (!opts.allowAnyTeam && !canAccessTeam(ctx, teamId)) {
         throw new ForbiddenError("Cannot post to that team");
       }
+      // The team MUST belong to this tenant — enforced explicitly (not just via RLS) so
+      // a cross-tenant teamId can never be written, even under an RLS-bypassing role.
+      const team = await tx.team.findFirst({ where: { id: teamId, tenantId: ctx.tenantId }, select: { id: true } });
+      if (!team) throw new NotFoundError("Team not found in this tenant");
     } else {
       // Explicit tenant filter (defense-in-depth): correct even when the caller's role
       // bypasses RLS (e.g. the owner role during seeding).
@@ -107,8 +111,9 @@ export async function createTicketTx(
 
     let categoryId: string | null = null;
     if (input.categoryId) {
-      const cat = await tx.category.findUnique({
-        where: { id: input.categoryId },
+      // Scope to this tenant (defense-in-depth, correct even under an RLS-bypassing role).
+      const cat = await tx.category.findFirst({
+        where: { id: input.categoryId, tenantId: ctx.tenantId },
         select: { id: true },
       });
       categoryId = cat?.id ?? null;
