@@ -2,6 +2,7 @@ import { withTenant } from "@/lib/db";
 import { type AuthContext, requirePermission, ForbiddenError } from "@/lib/authz";
 import { NotFoundError } from "@/lib/errors";
 import { createTicketTx } from "@/lib/tickets/service";
+import { safeEmit } from "@/lib/automation/engine";
 import { buildZod, asFormSchema, valuesToDescription } from "@/lib/catalog/form";
 import { materializeApprovals, type ChainStep } from "@/lib/catalog/approvals";
 import type { Prisma } from "@prisma/client";
@@ -67,7 +68,7 @@ async function resolveTeam(
  */
 export async function submitCatalog(ctx: AuthContext, itemId: string, values: Record<string, unknown>) {
   requirePermission(ctx, "ticket.create");
-  return withTenant(ctx.tenantId, ctx.userId, async (tx) => {
+  const result = await withTenant(ctx.tenantId, ctx.userId, async (tx) => {
     const item = await tx.serviceCatalogItem.findFirst({
       where: { id: itemId, ...visibleWhere(ctx) },
       include: { formDefinition: true },
@@ -115,4 +116,7 @@ export async function submitCatalog(ctx: AuthContext, itemId: string, values: Re
 
     return { ticketId: ticket.id, ticketNumber: ticket.ticketNumber, approvals: approvalCount };
   });
+  // Catalog-created tickets trigger automation like any other ticket (after commit, ADR-9).
+  await safeEmit(ctx.tenantId, { event: "ticket.created", entityType: "ticket", entityId: result.ticketId, actorId: ctx.userId });
+  return result;
 }

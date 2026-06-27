@@ -228,6 +228,7 @@ async function seedCompany() {
   await createRule(ownerCtx, { name: "Escalate security events", event: "ticket.created", conditions: [{ field: "type", operator: "equals", value: "security_event" }], actions: [{ type: "set_priority", value: "p1" }, { type: "assign_team", teamId: teamId("Security") }], priority: 0 });
   await createRule(ownerCtx, { name: "Tag access requests", event: "ticket.created", conditions: [{ field: "type", operator: "equals", value: "access_request" }], actions: [{ type: "add_tag", value: "access-review" }], priority: 1 });
   await createRule(ownerCtx, { name: "Notify on P1", event: "ticket.created", conditions: [{ field: "priority", operator: "equals", value: "p1" }], actions: [{ type: "send_notification", userIds: [itManager], title: "New P1 ticket", body: "A P1 was just created." }], priority: 2 });
+  await createRule(ownerCtx, { name: "Auto-acknowledge new requests", event: "ticket.created", conditions: [], actions: [{ type: "add_internal_note", body: "Auto-acknowledged by automation — an agent will follow up shortly." }], priority: 3 });
   await createRule(ownerCtx, { name: "Webhook on new tickets", event: "ticket.created", conditions: [], actions: [{ type: "call_webhook", url: "https://hooks.globex-demo.test/itsm" }], priority: 5, enabled: false });
 
   console.log("Submitting catalog requests (creates approvals + run history)…");

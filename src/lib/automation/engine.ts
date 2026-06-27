@@ -40,7 +40,9 @@ export async function emitEvent(
   if (depth > MAX_DEPTH) return;
 
   const rules = await withTenant(tenantId, undefined, (tx) =>
-    tx.automationRule.findMany({ where: { event: evt.event, enabled: true }, orderBy: { priority: "asc" } }),
+    // Explicit tenant filter (defense-in-depth): rules MUST be scoped to this tenant even
+    // when the caller's role bypasses RLS (e.g. the owner role during seeding).
+    tx.automationRule.findMany({ where: { tenantId, event: evt.event, enabled: true }, orderBy: { priority: "asc" } }),
   );
 
   for (const rule of rules) {
@@ -179,6 +181,9 @@ async function runSyncAction(
     }
     case "assign_team": {
       const teamId = action.teamId as string;
+      // The target team MUST belong to this tenant (never cross-tenant).
+      const ok = await tx.team.findFirst({ where: { id: teamId, tenantId }, select: { id: true } });
+      if (!ok) throw new Error("assign_team: target team not in tenant");
       await tx.ticket.update({ where: { id: ticketId }, data: { teamId } });
       await recordHistory(tx, { tenantId, ticketId, teamId, actorId, action: "updated", field: "team", newValue: teamId, metadata: { via: "automation" } });
       return { output: { teamId }, followUp: "ticket.updated" };
