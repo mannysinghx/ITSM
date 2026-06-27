@@ -81,8 +81,8 @@ export async function createTask(ctx: AuthContext, input: CreateTaskInput) {
       teamId = ticket.teamId;
     }
     if (!teamId) {
-      const def = (await tx.team.findFirst({ where: { isDefault: true }, select: { id: true } })) ??
-        (await tx.team.findFirst({ select: { id: true } }));
+      const def = (await tx.team.findFirst({ where: { tenantId: ctx.tenantId, isDefault: true }, select: { id: true } })) ??
+        (await tx.team.findFirst({ where: { tenantId: ctx.tenantId }, select: { id: true } }));
       if (!def) throw new NotFoundError("No team available");
       teamId = def.id;
     }

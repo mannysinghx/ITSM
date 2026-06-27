@@ -83,9 +83,11 @@ export async function createTicketTx(
         throw new ForbiddenError("Cannot post to that team");
       }
     } else {
+      // Explicit tenant filter (defense-in-depth): correct even when the caller's role
+      // bypasses RLS (e.g. the owner role during seeding).
       const def =
-        (await tx.team.findFirst({ where: { isDefault: true }, select: { id: true } })) ??
-        (await tx.team.findFirst({ select: { id: true } }));
+        (await tx.team.findFirst({ where: { tenantId: ctx.tenantId, isDefault: true }, select: { id: true } })) ??
+        (await tx.team.findFirst({ where: { tenantId: ctx.tenantId }, select: { id: true } }));
       if (!def) throw new NotFoundError("No team available");
       teamId = def.id;
     }
@@ -98,7 +100,7 @@ export async function createTicketTx(
     if (!type) throw new NotFoundError("Unknown ticket type");
 
     const status = await tx.ticketStatus.findFirst({
-      where: { isDefault: true },
+      where: { tenantId: ctx.tenantId, isDefault: true },
       select: { id: true },
     });
     if (!status) throw new NotFoundError("No default status configured");

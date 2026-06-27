@@ -13,7 +13,8 @@ export interface PolicyMatchInput {
  * ties broken by most recently created. Returns null if nothing matches.
  */
 export async function resolveSlaPolicy(tx: Tx, tenantId: string, input: PolicyMatchInput) {
-  const policies = await tx.sLAPolicy.findMany({ where: { enabled: true } });
+  // Explicit tenant filter (defense-in-depth): correct even under an RLS-bypassing role.
+  const policies = await tx.sLAPolicy.findMany({ where: { tenantId, enabled: true } });
 
   const candidates = policies
     .filter(
