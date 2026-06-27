@@ -9,8 +9,22 @@ export const DEMO_EMAIL_DOMAIN = "@demospace.local";
  * tenants without a per-tenant RLS context — the role carries BYPASSRLS in production).
  */
 export async function purgeDemo(): Promise<{ tenants: number; users: number }> {
+  const demoUsers = await prisma.user.findMany({
+    where: { email: { endsWith: DEMO_EMAIL_DOMAIN } },
+    select: { id: true },
+  });
+  const demoUserIds = demoUsers.map((u) => u.id);
+
+  // Delete tenants that are demo-flagged OR owned by a demo user (covers orphans from a
+  // partial seed run that never got flagged). Tenants must go before their owner users
+  // (tenants.owner_user_id has no cascade).
   const demoTenants = await prisma.tenant.findMany({
-    where: { settings: { path: ["demo"], equals: true } },
+    where: {
+      OR: [
+        { settings: { path: ["demo"], equals: true } },
+        ...(demoUserIds.length ? [{ ownerUserId: { in: demoUserIds } }] : []),
+      ],
+    },
     select: { id: true },
   });
   if (demoTenants.length > 0) {
