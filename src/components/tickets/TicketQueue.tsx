@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { PriorityBadge, StatusBadge } from "@/components/tickets/badges";
+import { PriorityBadge, StatusBadge, TypeBadge } from "@/components/tickets/badges";
 
 interface Row {
   id: string;
@@ -10,7 +10,7 @@ interface Row {
   title: string;
   priority: string;
   status: { key: string; name: string; category: string };
-  type: { name: string };
+  type: { key: string; name: string };
   team: { name: string };
   requester: { name: string } | null;
   assignee: { name: string } | null;
@@ -109,6 +109,7 @@ export function TicketQueue() {
                 <th className="px-3 py-2 font-medium">Title</th>
                 <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Priority</th>
+                <th className="px-3 py-2 font-medium">Type</th>
                 <th className="px-3 py-2 font-medium">Team</th>
                 <th className="px-3 py-2 font-medium">Assignee</th>
               </tr>
@@ -130,6 +131,7 @@ export function TicketQueue() {
                     <StatusBadge name={t.status.name} category={t.status.category} />
                   </td>
                   <td className="px-3 py-2"><PriorityBadge priority={t.priority} /></td>
+                  <td className="px-3 py-2"><TypeBadge typeKey={t.type.key} name={t.type.name} /></td>
                   <td className="px-3 py-2 text-slate-600">{t.team.name}</td>
                   <td className="px-3 py-2 text-slate-600">{t.assignee?.name ?? "—"}</td>
                 </tr>
@@ -154,6 +156,9 @@ export function TicketQueue() {
                       <PriorityBadge priority={t.priority} />
                     </div>
                     <div className="mt-1 line-clamp-2">{t.title}</div>
+                    <div className="mt-2">
+                      <TypeBadge typeKey={t.type.key} name={t.type.name} />
+                    </div>
                   </Link>
                 ))}
               </div>

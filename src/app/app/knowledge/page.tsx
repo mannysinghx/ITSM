@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Pill } from "@/components/ui/Pill";
+import { KNOWLEDGE_STATUS_COLORS, KNOWLEDGE_SOURCE_COLORS, colorFor } from "@/lib/ui/colors";
 
 interface Article {
   id: string;
@@ -10,30 +12,6 @@ interface Article {
   status: string;
   source: string;
   updatedAt: string;
-}
-
-const STATUS_STYLE: Record<string, string> = {
-  draft: "bg-amber-100 text-amber-800",
-  published: "bg-green-100 text-green-800",
-  archived: "bg-slate-200 text-slate-700",
-};
-
-const SOURCE_STYLE: Record<string, string> = {
-  human: "bg-blue-100 text-blue-800",
-  ai: "bg-purple-100 text-purple-800",
-  ticket: "bg-slate-100 text-slate-700",
-};
-
-function Chip({ value, styles }: { value: string; styles: Record<string, string> }) {
-  return (
-    <span
-      className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
-        styles[value] ?? "bg-slate-100 text-slate-700"
-      }`}
-    >
-      {value}
-    </span>
-  );
 }
 
 export default function KnowledgePage() {
@@ -91,10 +69,12 @@ export default function KnowledgePage() {
                     </Link>
                   </td>
                   <td className="px-3 py-2">
-                    <Chip value={a.status} styles={STATUS_STYLE} />
+                    <Pill color={colorFor(KNOWLEDGE_STATUS_COLORS, a.status)} withDot>
+                      {a.status}
+                    </Pill>
                   </td>
                   <td className="px-3 py-2">
-                    <Chip value={a.source} styles={SOURCE_STYLE} />
+                    <Pill color={colorFor(KNOWLEDGE_SOURCE_COLORS, a.source)}>{a.source}</Pill>
                   </td>
                   <td className="px-3 py-2 text-slate-500">
                     {new Date(a.updatedAt).toLocaleDateString()}

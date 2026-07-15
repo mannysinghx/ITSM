@@ -9,3 +9,11 @@
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
 }
+
+::selection {
+  @apply bg-brand-200 text-brand-900;
+}
+
+:focus-visible {
+  @apply outline-2 outline-offset-2 outline-brand-500;
+}

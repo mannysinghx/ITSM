@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { PriorityBadge } from "@/components/tickets/badges";
+import { TASK_STATUS_COLORS, colorFor } from "@/lib/ui/colors";
 
 interface Task {
   id: string;
@@ -182,7 +183,10 @@ export default function TasksPage() {
             return (
               <div key={col.key} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <span className="text-xs font-semibold text-slate-500">{col.name}</span>
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                    <span className={`h-1.5 w-1.5 rounded-full ${colorFor(TASK_STATUS_COLORS, col.key).dot}`} />
+                    {col.name}
+                  </span>
                   <span className="text-xs text-slate-400">{colTasks.length}</span>
                 </div>
                 <div className="space-y-2">

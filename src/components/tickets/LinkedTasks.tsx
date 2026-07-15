@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Pill } from "@/components/ui/Pill";
+import { TASK_STATUS_COLORS, colorFor } from "@/lib/ui/colors";
 
 interface Task {
   id: string;
@@ -41,9 +43,9 @@ export function LinkedTasks({ ticketId, teamId }: { ticketId: string; teamId: st
         {tasks.map((t) => (
           <li key={t.id} className="flex items-center justify-between">
             <span>{t.title}</span>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
+            <Pill color={colorFor(TASK_STATUS_COLORS, t.status)} withDot>
               {t.status.replace(/_/g, " ")}
-            </span>
+            </Pill>
           </li>
         ))}
       </ul>

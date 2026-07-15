@@ -1,27 +1,17 @@
-const PRIORITY_STYLE: Record<string, string> = {
-  p1: "bg-red-100 text-red-800",
-  p2: "bg-orange-100 text-orange-800",
-  p3: "bg-amber-100 text-amber-800",
-  p4: "bg-slate-100 text-slate-700",
-};
-
-const STATUS_STYLE: Record<string, string> = {
-  open: "bg-blue-100 text-blue-800",
-  pending: "bg-purple-100 text-purple-800",
-  resolved: "bg-green-100 text-green-800",
-  closed: "bg-slate-200 text-slate-700",
-  cancelled: "bg-slate-100 text-slate-500",
-};
+import { Pill } from "@/components/ui/Pill";
+import {
+  PRIORITY_COLORS,
+  STATUS_CATEGORY_COLORS,
+  TICKET_TYPE_COLORS,
+  TICKET_CATEGORY_COLORS,
+  colorFor,
+} from "@/lib/ui/colors";
 
 export function PriorityBadge({ priority }: { priority: string }) {
   return (
-    <span
-      className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${
-        PRIORITY_STYLE[priority] ?? "bg-slate-100 text-slate-700"
-      }`}
-    >
+    <Pill color={colorFor(PRIORITY_COLORS, priority)} withDot>
       {priority.toUpperCase()}
-    </span>
+    </Pill>
   );
 }
 
@@ -33,12 +23,20 @@ export function StatusBadge({
   category: string;
 }) {
   return (
-    <span
-      className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
-        STATUS_STYLE[category] ?? "bg-slate-100 text-slate-700"
-      }`}
-    >
+    <Pill color={colorFor(STATUS_CATEGORY_COLORS, category)} withDot>
       {name}
-    </span>
+    </Pill>
   );
+}
+
+export function TypeBadge({ typeKey, name }: { typeKey: string; name: string }) {
+  return (
+    <Pill color={colorFor(TICKET_TYPE_COLORS, typeKey)} withDot>
+      {name}
+    </Pill>
+  );
+}
+
+export function CategoryBadge({ name }: { name: string }) {
+  return <Pill color={colorFor(TICKET_CATEGORY_COLORS, name)}>{name}</Pill>;
 }

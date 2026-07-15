@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { Pill } from "@/components/ui/Pill";
+import { ACTIVE_STATE_COLORS, colorFor } from "@/lib/ui/colors";
 
 interface Member {
   userId: string;
@@ -161,13 +163,13 @@ export default function AdminTeamsPage() {
                     Save name
                   </button>
                   {team.isDefault && (
-                    <span className="inline-block rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800">
+                    <span className="inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-600/20">
                       default
                     </span>
                   )}
-                  <span className="inline-block rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">
+                  <Pill color={colorFor(ACTIVE_STATE_COLORS, team.status)} withDot>
                     {team.status}
-                  </span>
+                  </Pill>
                   <span className="text-xs text-slate-400">
                     {team.memberCount} member{team.memberCount === 1 ? "" : "s"}
                   </span>
