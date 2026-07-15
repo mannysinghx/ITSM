@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Pill } from "@/components/ui/Pill";
+import { SLA_STATE_COLORS, colorFor } from "@/lib/ui/colors";
 
 interface Timer {
   kind: string;
@@ -8,12 +10,6 @@ interface Timer {
   state: "satisfied" | "breached" | "warning" | "on_track";
 }
 
-const STATE_STYLE: Record<string, string> = {
-  satisfied: "bg-green-100 text-green-800",
-  on_track: "bg-blue-100 text-blue-800",
-  warning: "bg-amber-100 text-amber-800",
-  breached: "bg-red-100 text-red-800",
-};
 const STATE_LABEL: Record<string, string> = {
   satisfied: "Met", on_track: "On track", warning: "Warning", breached: "Breached",
 };
@@ -45,9 +41,9 @@ export function SlaPanel({ ticketId }: { ticketId: string }) {
                 <div className="capitalize">{t.kind.replace(/_/g, " ")}</div>
                 <div className="text-xs text-slate-400">due {new Date(t.dueAt).toLocaleString()}</div>
               </div>
-              <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATE_STYLE[t.state]}`}>
+              <Pill color={colorFor(SLA_STATE_COLORS, t.state)} withDot>
                 {STATE_LABEL[t.state]}
-              </span>
+              </Pill>
             </li>
           ))}
         </ul>

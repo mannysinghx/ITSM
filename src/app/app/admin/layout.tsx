@@ -29,7 +29,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Admin</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Admin</h1>
         <p className="text-sm text-slate-500">Tenant configuration — every change is audited.</p>
       </div>
       <div className="flex flex-wrap gap-1 border-b border-slate-200">
@@ -37,7 +37,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link
             key={n.href}
             href={n.href}
-            className="rounded-t-md px-3 py-2 text-sm text-slate-600 hover:bg-white hover:text-slate-900"
+            className="rounded-t-md border-b-2 border-transparent px-3 py-2 text-sm font-medium text-slate-600 hover:border-brand-300 hover:text-brand-700"
           >
             {n.label}
           </Link>

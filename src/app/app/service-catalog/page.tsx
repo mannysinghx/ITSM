@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { Pill } from "@/components/ui/Pill";
+import { APPROVAL_STATUS_COLORS, TICKET_CATEGORY_COLORS, colorFor } from "@/lib/ui/colors";
 
 interface CatalogItem {
   id: string;
@@ -56,18 +58,20 @@ export default function ServiceCatalogPage() {
               <div className="flex items-start justify-between gap-2">
                 <h2 className="font-semibold">{item.name}</h2>
                 {item.category && (
-                  <span className="inline-block shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">
+                  <Pill color={colorFor(TICKET_CATEGORY_COLORS, item.category)}>
                     {item.category}
-                  </span>
+                  </Pill>
                 )}
               </div>
               {item.description && (
                 <p className="mt-2 line-clamp-3 text-sm text-slate-600">{item.description}</p>
               )}
               {item.approvalRequired && (
-                <span className="mt-3 inline-block w-fit rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
-                  Approval required
-                </span>
+                <div className="mt-3 w-fit">
+                  <Pill color={colorFor(APPROVAL_STATUS_COLORS, "pending")} withDot>
+                    Approval required
+                  </Pill>
+                </div>
               )}
             </Link>
           ))}

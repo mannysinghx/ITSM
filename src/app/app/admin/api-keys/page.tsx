@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { Pill } from "@/components/ui/Pill";
+import { ACTIVE_STATE_COLORS, colorFor } from "@/lib/ui/colors";
 
 interface ApiKey {
   id: string;
@@ -163,13 +165,9 @@ export default function AdminApiKeysPage() {
                       {k.scopes.length ? k.scopes.join(", ") : "—"}
                     </td>
                     <td className="px-3 py-2">
-                      <span
-                        className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
-                          revoked ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
-                        }`}
-                      >
+                      <Pill color={colorFor(ACTIVE_STATE_COLORS, revoked ? "revoked" : "active")} withDot>
                         {revoked ? "Revoked" : "Active"}
-                      </span>
+                      </Pill>
                     </td>
                     <td className="px-3 py-2 text-slate-600">
                       {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString() : "—"}

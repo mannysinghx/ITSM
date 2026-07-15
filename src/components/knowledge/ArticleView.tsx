@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Pill } from "@/components/ui/Pill";
+import { KNOWLEDGE_STATUS_COLORS, KNOWLEDGE_SOURCE_COLORS, colorFor } from "@/lib/ui/colors";
 
 interface Version {
   version: number;
@@ -20,30 +22,6 @@ interface Article {
   versions: Version[];
   canEdit: boolean;
   canPublish: boolean;
-}
-
-const STATUS_STYLE: Record<string, string> = {
-  draft: "bg-amber-100 text-amber-800",
-  published: "bg-green-100 text-green-800",
-  archived: "bg-slate-200 text-slate-700",
-};
-
-const SOURCE_STYLE: Record<string, string> = {
-  human: "bg-blue-100 text-blue-800",
-  ai: "bg-purple-100 text-purple-800",
-  ticket: "bg-slate-100 text-slate-700",
-};
-
-function Chip({ value, styles }: { value: string; styles: Record<string, string> }) {
-  return (
-    <span
-      className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
-        styles[value] ?? "bg-slate-100 text-slate-700"
-      }`}
-    >
-      {value}
-    </span>
-  );
 }
 
 export function ArticleView({ id }: { id: string }) {
@@ -149,8 +127,10 @@ export function ArticleView({ id }: { id: string }) {
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold">{article.title}</h1>
-          <Chip value={article.status} styles={STATUS_STYLE} />
-          <Chip value={article.source} styles={SOURCE_STYLE} />
+          <Pill color={colorFor(KNOWLEDGE_STATUS_COLORS, article.status)} withDot>
+            {article.status}
+          </Pill>
+          <Pill color={colorFor(KNOWLEDGE_SOURCE_COLORS, article.source)}>{article.source}</Pill>
           <div className="ml-auto flex items-center gap-2">
             {article.canEdit && (
               <button
@@ -218,9 +198,7 @@ export function ArticleView({ id }: { id: string }) {
               <li key={v.version} className="flex items-center gap-2 py-2">
                 <span className="font-medium">v{v.version}</span>
                 {v.aiGenerated && (
-                  <span className="inline-block rounded bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-800">
-                    AI-generated
-                  </span>
+                  <Pill color={colorFor(KNOWLEDGE_SOURCE_COLORS, "ai")}>AI-generated</Pill>
                 )}
                 <span className="ml-auto text-slate-500">
                   {new Date(v.createdAt).toLocaleString()}

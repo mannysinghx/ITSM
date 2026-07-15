@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { Pill } from "@/components/ui/Pill";
+import { ACTIVE_STATE_COLORS, RUN_STATUS_COLORS, STEP_STATUS_COLORS, colorFor } from "@/lib/ui/colors";
 
 interface Rule {
   id: string;
@@ -39,22 +41,6 @@ const EVENTS = [
 ];
 
 const DEFAULT_ACTIONS = JSON.stringify([{ type: "set_priority", value: "p1" }]);
-
-function statusColor(status: string): string {
-  switch (status) {
-    case "completed":
-      return "bg-green-100 text-green-700";
-    case "failed":
-      return "bg-red-100 text-red-700";
-    case "deferred":
-      return "bg-amber-100 text-amber-700";
-    case "matched":
-      return "bg-green-100 text-green-700";
-    case "skipped":
-    default:
-      return "bg-slate-100 text-slate-600";
-  }
-}
 
 export default function AdminAutomationPage() {
   const [rules, setRules] = useState<Rule[]>([]);
@@ -274,11 +260,13 @@ export default function AdminAutomationPage() {
                   <td className="px-3 py-2 font-medium">{r.name}</td>
                   <td className="px-3 py-2 text-slate-600">{r.event}</td>
                   <td className="px-3 py-2">
-                    <button
-                      onClick={() => toggleRule(r)}
-                      className="rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
-                    >
-                      {r.enabled ? "Enabled" : "Disabled"}
+                    <button onClick={() => toggleRule(r)}>
+                      <Pill
+                        color={colorFor(ACTIVE_STATE_COLORS, r.enabled ? "enabled" : "disabled")}
+                        withDot
+                      >
+                        {r.enabled ? "Enabled" : "Disabled"}
+                      </Pill>
                     </button>
                   </td>
                   <td className="px-3 py-2 text-slate-600">{r.priority}</td>
@@ -311,11 +299,9 @@ export default function AdminAutomationPage() {
                   onClick={() => setExpanded((s) => ({ ...s, [run.id]: !s[run.id] }))}
                   className="flex w-full items-center gap-2 text-left"
                 >
-                  <span
-                    className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${statusColor(run.status)}`}
-                  >
+                  <Pill color={colorFor(RUN_STATUS_COLORS, run.status)} withDot>
                     {run.status}
-                  </span>
+                  </Pill>
                   <span className="font-medium">{run.triggerEvent}</span>
                   <span className="text-xs text-slate-400">
                     {run.entityType} · depth {run.depth} ·{" "}
@@ -332,11 +318,9 @@ export default function AdminAutomationPage() {
                     ) : (
                       run.steps.map((step) => (
                         <li key={step.stepIndex} className="flex items-center gap-2 text-xs">
-                          <span
-                            className={`inline-block rounded px-1.5 py-0.5 font-medium ${statusColor(step.status)}`}
-                          >
+                          <Pill color={colorFor(STEP_STATUS_COLORS, step.status)} withDot>
                             {step.status}
-                          </span>
+                          </Pill>
                           <span className="text-slate-600">{step.actionType}</span>
                           {step.error && <span className="text-red-600">{step.error}</span>}
                         </li>

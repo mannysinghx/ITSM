@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { Pill } from "@/components/ui/Pill";
+import { APPROVAL_STATUS_COLORS, colorFor } from "@/lib/ui/colors";
 
 interface FormField {
   key: string;
@@ -262,9 +264,11 @@ export function CatalogForm({ itemId }: { itemId: string }) {
             <h1 className="text-2xl font-bold">{item.name}</h1>
             {item.description && <p className="mt-1 text-sm text-slate-600">{item.description}</p>}
             {item.approvalRequired && (
-              <span className="mt-2 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
-                Approval required
-              </span>
+              <div className="mt-2 w-fit">
+                <Pill color={colorFor(APPROVAL_STATUS_COLORS, "pending")} withDot>
+                  Approval required
+                </Pill>
+              </div>
             )}
           </div>
 

@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { PriorityBadge, StatusBadge } from "@/components/tickets/badges";
+import { PriorityBadge, StatusBadge, TypeBadge, CategoryBadge } from "@/components/tickets/badges";
+import { Pill } from "@/components/ui/Pill";
+import { SEVERITY_COLORS, colorFor } from "@/lib/ui/colors";
 import { SlaPanel } from "@/components/tickets/SlaPanel";
 import { LinkedTasks } from "@/components/tickets/LinkedTasks";
 import { AiAssist } from "@/components/tickets/AiAssist";
@@ -33,7 +35,7 @@ interface Ticket {
   tags: string[];
   createdAt: string;
   status: { key: string; name: string; category: string };
-  type: { name: string };
+  type: { key: string; name: string };
   category: { name: string } | null;
   team: { id: string; name: string };
   requester: { id: string; name: string; email: string };
@@ -234,10 +236,27 @@ export function TicketDetail({ id }: { id: string }) {
           <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
             <Detail label="Requester" value={t.requester.name} />
             <Detail label="Assignee" value={t.assignee?.name ?? "Unassigned"} />
-            <Detail label="Type" value={t.type.name} />
-            <Detail label="Category" value={t.category?.name ?? "—"} />
-            <Detail label="Impact" value={t.impact} />
-            <Detail label="Urgency" value={t.urgency} />
+            <Detail label="Type" value={<TypeBadge typeKey={t.type.key} name={t.type.name} />} />
+            <Detail
+              label="Category"
+              value={t.category ? <CategoryBadge name={t.category.name} /> : "—"}
+            />
+            <Detail
+              label="Impact"
+              value={
+                <Pill color={colorFor(SEVERITY_COLORS, t.impact)}>
+                  {t.impact}
+                </Pill>
+              }
+            />
+            <Detail
+              label="Urgency"
+              value={
+                <Pill color={colorFor(SEVERITY_COLORS, t.urgency)}>
+                  {t.urgency}
+                </Pill>
+              }
+            />
             <Detail label="Tags" value={t.tags.length ? t.tags.join(", ") : "—"} />
             <Detail label="Created" value={new Date(t.createdAt).toLocaleString()} />
           </div>
@@ -252,9 +271,9 @@ export function TicketDetail({ id }: { id: string }) {
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between border-b border-slate-100 py-1.5 last:border-0">
+    <div className="flex items-center justify-between border-b border-slate-100 py-1.5 last:border-0">
       <span className="text-slate-400">{label}</span>
       <span className="text-right font-medium">{value}</span>
     </div>
